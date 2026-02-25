@@ -1,0 +1,180 @@
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth-guard";
+import { QuestionType } from "@/generated/prisma";
+
+const optionSchema = z.object({
+  id: z.string().min(1),
+  text: z.string().min(1),
+});
+
+const updateQuestionSchema = z.object({
+  questionText: z.string().min(1).optional(),
+  questionType: z.nativeEnum(QuestionType).optional(),
+  options: z.array(optionSchema).min(2).optional(),
+  correctOptionIds: z.array(z.string()).min(1).optional(),
+  marks: z.number().int().positive().optional(),
+  negativeMarks: z.number().min(0).optional(),
+  explanation: z.string().optional().nullable(),
+  order: z.number().int().min(0).optional(),
+});
+
+type RouteParams = {
+  params: Promise<{ testId: string; questionId: string }>;
+};
+
+async function verifyQuestionAccess(testId: string, questionId: string) {
+  const session = await getSession();
+  if (!session) {
+    return {
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
+  }
+
+  const user = session.user as {
+    id: string;
+    role: string;
+    collegeId: string | null;
+  };
+
+  if (user.role !== "COLLEGE_ADMIN" && user.role !== "SUPER_ADMIN") {
+    return {
+      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
+  }
+
+  const question = await prisma.question.findUnique({
+    where: { id: questionId },
+    include: {
+      test: {
+        include: {
+          drive: { select: { collegeId: true } },
+        },
+      },
+    },
+  });
+
+  if (!question || question.testId !== testId) {
+    return {
+      error: NextResponse.json(
+        { error: "Question not found" },
+        { status: 404 }
+      ),
+    };
+  }
+
+  if (
+    user.role === "COLLEGE_ADMIN" &&
+    question.test.drive.collegeId !== user.collegeId
+  ) {
+    return {
+      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
+  }
+
+  return { session, user, question };
+}
+
+// PUT /api/tests/[testId]/questions/[questionId] — update a question
+export async function PUT(request: NextRequest, { params }: RouteParams) {
+  try {
+    const { testId, questionId } = await params;
+    const result = await verifyQuestionAccess(testId, questionId);
+    if ("error" in result) return result.error;
+
+    const body = await request.json();
+    const parsed = updateQuestionSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Validation failed", details: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
+
+    // If both options and correctOptionIds are provided, validate consistency
+    if (parsed.data.options && parsed.data.correctOptionIds) {
+      const optionIds = parsed.data.options.map((o) => o.id);
+      const invalidIds = parsed.data.correctOptionIds.filter(
+        (id) => !optionIds.includes(id)
+      );
+      if (invalidIds.length > 0) {
+        return NextResponse.json(
+          {
+            error: "Invalid correct option IDs",
+            details: `These IDs are not in options: ${invalidIds.join(", ")}`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    const question = await prisma.$transaction(async (tx) => {
+      const updated = await tx.question.update({
+        where: { id: questionId },
+        data: parsed.data,
+      });
+
+      // Recalculate totalMarks
+      const questions = await tx.question.findMany({
+        where: { testId },
+        select: { marks: true },
+      });
+      const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
+
+      await tx.test.update({
+        where: { id: testId },
+        data: { totalMarks },
+      });
+
+      return updated;
+    });
+
+    return NextResponse.json(question);
+  } catch (error) {
+    console.error(
+      "PUT /api/tests/[testId]/questions/[questionId] error:",
+      error
+    );
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/tests/[testId]/questions/[questionId] — delete a question
+export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+  try {
+    const { testId, questionId } = await params;
+    const result = await verifyQuestionAccess(testId, questionId);
+    if ("error" in result) return result.error;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.question.delete({ where: { id: questionId } });
+
+      // Recalculate totalMarks
+      const questions = await tx.question.findMany({
+        where: { testId },
+        select: { marks: true },
+      });
+      const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
+
+      await tx.test.update({
+        where: { id: testId },
+        data: { totalMarks },
+      });
+    });
+
+    return NextResponse.json({ message: "Question deleted successfully" });
+  } catch (error) {
+    console.error(
+      "DELETE /api/tests/[testId]/questions/[questionId] error:",
+      error
+    );
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

@@ -4,6 +4,52 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-guard";
 import { hashPassword } from "better-auth/crypto";
 
+const bulkDeleteSchema = z.object({
+  studentIds: z.array(z.string()).min(1),
+});
+
+// DELETE /api/students/bulk — bulk delete student accounts (COLLEGE_ADMIN only)
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const user = session.user as { id: string; role: string; collegeId: string };
+    if (user.role !== "COLLEGE_ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const parsed = bulkDeleteSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Validation failed", details: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
+
+    const { studentIds } = parsed.data;
+
+    const result = await prisma.user.deleteMany({
+      where: {
+        id: { in: studentIds },
+        collegeId: user.collegeId,
+        role: "STUDENT",
+      },
+    });
+
+    return NextResponse.json({ deleted: result.count });
+  } catch (error) {
+    console.error("DELETE /api/students/bulk error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
 const bulkStudentSchema = z.object({
   students: z.array(
     z.object({

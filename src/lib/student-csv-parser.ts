@@ -5,10 +5,11 @@ export interface CSVStudent {
   email: string;
   usn: string;
   deptCode: string;
+  semester: number;
   password: string;
 }
 
-const EXPECTED_HEADERS = ["name", "email", "usn", "password"];
+const EXPECTED_HEADERS = ["name", "email", "usn", "semester", "password"];
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -58,6 +59,7 @@ export function parseStudentsCSV(
     const name = row[colIndex("name")]?.trim();
     const email = row[colIndex("email")]?.trim().toLowerCase();
     const usn = row[colIndex("usn")]?.trim().toUpperCase();
+    const semesterRaw = row[colIndex("semester")]?.trim();
     const password = row[colIndex("password")]?.trim();
 
     if (!name) {
@@ -93,6 +95,20 @@ export function parseStudentsCSV(
       continue;
     }
 
+    if (!semesterRaw) {
+      errors.push({ row: rowNum, message: "Semester is empty" });
+      continue;
+    }
+
+    const semester = parseInt(semesterRaw, 10);
+    if (isNaN(semester) || semester < 1 || semester > 8) {
+      errors.push({
+        row: rowNum,
+        message: `Invalid semester: "${semesterRaw}" (must be 1-8)`,
+      });
+      continue;
+    }
+
     if (!password || password.length < 8) {
       errors.push({
         row: rowNum,
@@ -105,7 +121,7 @@ export function parseStudentsCSV(
 
     seenEmails.add(email);
     seenUsns.add(usn);
-    students.push({ name, email, usn, deptCode, password });
+    students.push({ name, email, usn, deptCode, semester, password });
   }
 
   return { students, errors };
@@ -116,9 +132,9 @@ export function parseStudentsCSV(
  */
 export function generateStudentCSVTemplate(usnFormat: string): string {
   const header = EXPECTED_HEADERS.join(",");
-  const example1 = `John Doe,john@example.com,${usnFormat},dept@2024`;
+  const example1 = `John Doe,john@example.com,${usnFormat},3,dept@2024`;
   // Create a second example with a slightly different USN
   const usn2 = usnFormat.slice(0, -3) + "002";
-  const example2 = `Jane Smith,jane@example.com,${usn2},dept@2024`;
+  const example2 = `Jane Smith,jane@example.com,${usn2},5,dept@2024`;
   return `${header}\n${example1}\n${example2}\n`;
 }

@@ -201,6 +201,10 @@ export default function StudentUploadPage() {
                       )
                     </li>
                     <li>
+                      <code className="bg-muted px-1 rounded text-xs">semester</code>
+                      {" "}&mdash; current semester (1&ndash;8)
+                    </li>
+                    <li>
                       <code className="bg-muted px-1 rounded text-xs">password</code>
                       {" "}&mdash; initial password (min 8 characters, can be shared per department)
                     </li>
@@ -276,6 +280,7 @@ export default function StudentUploadPage() {
                     <TableHead>Email</TableHead>
                     <TableHead>USN</TableHead>
                     <TableHead>Dept Code</TableHead>
+                    <TableHead>Semester</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -287,6 +292,9 @@ export default function StudentUploadPage() {
                       <TableCell className="font-mono">{s.usn}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{s.deptCode}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">Sem {s.semester}</Badge>
                       </TableCell>
                     </TableRow>
                   ))}

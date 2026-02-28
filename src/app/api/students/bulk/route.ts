@@ -57,6 +57,7 @@ const bulkStudentSchema = z.object({
       email: z.string().email(),
       usn: z.string().min(1),
       deptCode: z.string().min(1),
+      semester: z.number().int().min(1).max(8),
       password: z.string().min(8),
     })
   ),
@@ -165,6 +166,7 @@ export async function POST(request: NextRequest) {
               collegeId,
               usn,
               departmentId,
+              semester: student.semester,
             },
           });
 

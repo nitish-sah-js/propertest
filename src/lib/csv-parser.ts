@@ -19,8 +19,6 @@ const EXPECTED_HEADERS = [
   "option_2",
   "option_3",
   "option_4",
-  "option_5",
-  "option_6",
   "correct_answers",
   "question_type",
   "marks",
@@ -129,7 +127,7 @@ export function parseQuestionsCSV(text: string): {
 
     // Collect non-empty options
     const optionTexts: { index: number; text: string }[] = [];
-    for (let j = 1; j <= 6; j++) {
+    for (let j = 1; j <= 4; j++) {
       const text = row[colIndex(`option_${j}`)];
       if (text) {
         optionTexts.push({ index: j, text });
@@ -245,7 +243,7 @@ export function parseQuestionsCSV(text: string): {
  */
 export function generateCSVTemplate(): string {
   const header = EXPECTED_HEADERS.join(",");
-  const example1 = `"What is 2+2?","1","2","3","4",,,"4",SINGLE_SELECT,1,0,""`;
-  const example2 = `"Select all prime numbers","2","3","4","5","6",,"1;2;4",MULTI_SELECT,2,0.5,"2, 3, and 5 are prime"`;
+  const example1 = `"What is 2+2?","1","2","3","4","4",SINGLE_SELECT,1,0,""`;
+  const example2 = `"Select all prime numbers","2","3","4","5","1;2;4",MULTI_SELECT,2,0.5,"2, 3, and 5 are prime"`;
   return `${header}\n${example1}\n${example2}\n`;
 }

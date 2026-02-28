@@ -129,7 +129,7 @@ export default function BulkUploadPage() {
                 <li>
                   <code className="bg-muted px-1 rounded text-xs">option_1</code>{" "}
                   to{" "}
-                  <code className="bg-muted px-1 rounded text-xs">option_6</code>{" "}
+                  <code className="bg-muted px-1 rounded text-xs">option_4</code>{" "}
                   &mdash; min 2, leave extras blank
                 </li>
                 <li>

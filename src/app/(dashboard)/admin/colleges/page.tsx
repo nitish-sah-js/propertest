@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, ArrowRight } from "lucide-react";
+import { DeleteCollegeButton } from "./delete-college-button";
 
 export default async function CollegesListPage() {
   const colleges = await prisma.college.findMany({
@@ -19,6 +20,7 @@ export default async function CollegesListPage() {
         select: {
           users: true,
           placementDrives: true,
+          departments: true,
         },
       },
     },
@@ -87,12 +89,21 @@ export default async function CollegesListPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/admin/colleges/${college.id}`}>
-                        View
-                        <ArrowRight />
-                      </Link>
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/admin/colleges/${college.id}`}>
+                          View
+                          <ArrowRight />
+                        </Link>
+                      </Button>
+                      <DeleteCollegeButton
+                        collegeId={college.id}
+                        collegeName={college.name}
+                        userCount={college._count.users}
+                        driveCount={college._count.placementDrives}
+                        departmentCount={college._count.departments}
+                      />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

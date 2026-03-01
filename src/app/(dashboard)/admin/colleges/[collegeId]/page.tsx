@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { ArrowLeft, Loader2, Users, Briefcase } from "lucide-react";
 import Link from "next/link";
+import { CollegeStats } from "./college-stats";
 
 interface CollegeData {
   id: string;
@@ -246,6 +247,8 @@ export default function CollegeDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      <CollegeStats collegeId={params.collegeId} />
 
       <Card className="max-w-2xl">
         <CardHeader>

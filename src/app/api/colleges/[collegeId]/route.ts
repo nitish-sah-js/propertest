@@ -124,8 +124,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 }
 
 // DELETE /api/colleges/[collegeId] — delete a college (super admin only)
+// Pass ?deleteUsers=true to also delete all users belonging to this college
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: RouteParams
 ) {
   try {
@@ -140,12 +141,17 @@ export async function DELETE(
     }
 
     const { collegeId } = await params;
+    const deleteUsers = request.nextUrl.searchParams.get("deleteUsers") === "true";
 
     const existing = await prisma.college.findUnique({
       where: { id: collegeId },
     });
     if (!existing) {
       return NextResponse.json({ error: "College not found" }, { status: 404 });
+    }
+
+    if (deleteUsers) {
+      await prisma.user.deleteMany({ where: { collegeId } });
     }
 
     await prisma.college.delete({ where: { id: collegeId } });

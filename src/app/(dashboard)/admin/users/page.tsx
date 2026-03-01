@@ -11,6 +11,7 @@ import {
 import { format } from "date-fns";
 import type { Prisma, Role } from "@/generated/prisma/client";
 import { RoleFilter } from "./role-filter";
+import { DeleteUserButton } from "./delete-user-button";
 
 const validRoles: Role[] = ["SUPER_ADMIN", "COLLEGE_ADMIN", "STUDENT"];
 
@@ -48,6 +49,11 @@ export default async function UsersListPage({ searchParams }: PageProps) {
           name: true,
         },
       },
+      _count: {
+        select: {
+          testAttempts: true,
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -73,13 +79,14 @@ export default async function UsersListPage({ searchParams }: PageProps) {
               <TableHead>Role</TableHead>
               <TableHead>College</TableHead>
               <TableHead>Joined</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {users.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="h-24 text-center text-muted-foreground"
                 >
                   No users found.
@@ -100,6 +107,15 @@ export default async function UsersListPage({ searchParams }: PageProps) {
                   </TableCell>
                   <TableCell>
                     {format(new Date(user.createdAt), "MMM d, yyyy")}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DeleteUserButton
+                      userId={user.id}
+                      userName={user.name}
+                      userEmail={user.email}
+                      userRole={user.role}
+                      testAttemptCount={user._count.testAttempts}
+                    />
                   </TableCell>
                 </TableRow>
               ))

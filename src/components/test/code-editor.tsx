@@ -198,9 +198,9 @@ export function CodeEditor({
           className="bg-green-600 hover:bg-green-700"
         >
           {running ? (
-            <Loader2 className="size-4 animate-spin mr-1" />
+            <Loader2 className="size-4 animate-spin mr-1" aria-hidden="true" />
           ) : (
-            <Play className="size-4 mr-1" />
+            <Play className="size-4 mr-1" aria-hidden="true" />
           )}
           {running ? "Running..." : "Run Code"}
         </Button>
@@ -253,9 +253,9 @@ export function CodeEditor({
             >
               <div className="flex items-center gap-2">
                 {result.passed ? (
-                  <CheckCircle className="size-4 text-green-500" />
+                  <CheckCircle className="size-4 text-green-500" aria-hidden="true" />
                 ) : (
-                  <XCircle className="size-4 text-red-500" />
+                  <XCircle className="size-4 text-red-500" aria-hidden="true" />
                 )}
                 <span className="font-medium">
                   Test Case {idx + 1}: {result.passed ? "Passed" : "Failed"}

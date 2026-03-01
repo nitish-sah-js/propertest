@@ -72,6 +72,7 @@ export default function RegisterStudentPage() {
             <Input
               id="name"
               placeholder="John Doe"
+              autoComplete="name"
               value={formData.name}
               onChange={(e) => updateField("name", e.target.value)}
               required
@@ -83,6 +84,7 @@ export default function RegisterStudentPage() {
               id="email"
               type="email"
               placeholder="you@example.com"
+              autoComplete="email"
               value={formData.email}
               onChange={(e) => updateField("email", e.target.value)}
               required
@@ -94,6 +96,7 @@ export default function RegisterStudentPage() {
               id="password"
               type="password"
               placeholder="Minimum 8 characters"
+              autoComplete="new-password"
               value={formData.password}
               onChange={(e) => updateField("password", e.target.value)}
               required
@@ -105,6 +108,7 @@ export default function RegisterStudentPage() {
             <Input
               id="collegeCode"
               placeholder="Enter your college code"
+              autoComplete="off"
               value={formData.collegeCode}
               onChange={(e) => updateField("collegeCode", e.target.value)}
               required

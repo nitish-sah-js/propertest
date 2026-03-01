@@ -51,7 +51,7 @@ export function Topbar({ user }: TopbarProps) {
       <div className="flex-1" />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+          <Button variant="ghost" className="relative h-9 w-9 rounded-full" aria-label="Open user menu">
             <Avatar className="h-9 w-9">
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
@@ -76,12 +76,12 @@ export function Topbar({ user }: TopbarProps) {
                     : "/student/settings"
               }
             >
-              <Settings className="mr-2 h-4 w-4" />
+              <Settings className="mr-2 h-4 w-4" aria-hidden="true" />
               Settings
             </a>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleSignOut} className="text-red-600 cursor-pointer">
-            <LogOut className="mr-2 h-4 w-4" />
+            <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
             Sign out
           </DropdownMenuItem>
         </DropdownMenuContent>

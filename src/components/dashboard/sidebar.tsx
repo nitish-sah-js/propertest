@@ -13,6 +13,7 @@ import {
   BarChart3,
   Settings,
   Briefcase,
+  BookOpen,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -25,6 +26,7 @@ interface NavItem {
 const adminNav: NavItem[] = [
   { title: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { title: "Colleges", href: "/admin/colleges", icon: Building2 },
+  { title: "Library", href: "/admin/library", icon: BookOpen },
   { title: "Users", href: "/admin/users", icon: Users },
   { title: "Settings", href: "/admin/settings", icon: Settings },
 ];
@@ -32,6 +34,7 @@ const adminNav: NavItem[] = [
 const collegeNav: NavItem[] = [
   { title: "Dashboard", href: "/college", icon: LayoutDashboard },
   { title: "Drives", href: "/college/drives", icon: Briefcase },
+  { title: "Library", href: "/college/library", icon: BookOpen },
   { title: "Students", href: "/college/students", icon: GraduationCap },
   { title: "Departments", href: "/college/departments", icon: Building2 },
   { title: "Settings", href: "/college/settings", icon: Settings },

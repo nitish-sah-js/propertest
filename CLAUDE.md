@@ -47,21 +47,22 @@ docker compose up -d   # Start Judge0 services (server, workers, postgres, redis
 - `src/app/api/` — REST API routes (see API Route Patterns below)
 
 ### Key Modules
-- `src/lib/auth.ts` — Better Auth config with Prisma adapter; extends User with `role` and `collegeId` fields
+- `src/lib/auth.ts` — Better Auth config with Prisma adapter; extends User with `role` and `collegeId` fields. Students are limited to one active session (previous sessions deleted on login).
 - `src/lib/auth-client.ts` — Client-side auth helpers (`signIn`, `signUp`, `signOut`, `useSession`)
 - `src/lib/auth-guard.ts` — Server-side helpers: `getSession()`, `requireAuth()`, `requireRole(role)`, `getRoleRedirect(role)`
 - `src/lib/judge0.ts` — Code execution: `executeCode()` for single runs, `executeBatch()` for test case validation with polling. Language IDs: PYTHON→71, JAVA→62, C→50, CPP→54
 - `src/lib/prisma.ts` — Prisma client singleton using `PrismaPg` driver adapter (not the default Prisma engine)
+- `src/lib/test-eligibility.ts` — `isStudentEligible()` checks test access by department, semester, and specific student lists. `buildEligibleStudentsWhere()` builds Prisma where clauses for querying eligible students. Tests use JSON fields (`allowedDepartmentIds`, `allowedSemesters`, `allowedStudentIds`) for eligibility restrictions.
 - `src/lib/csv-parser.ts` / `src/lib/student-csv-parser.ts` — CSV parsing for bulk student import with USN-based department extraction
 - `src/middleware.ts` — Route protection; checks `better-auth.session_token` cookie, redirects unauthenticated users to `/login`
-- `src/hooks/use-proctoring.ts` — Client-side proctoring hook tracking tab switches, fullscreen exits, copy/paste, right-click, keyboard shortcuts
+- `src/hooks/use-proctoring.ts` — Client-side proctoring hook tracking tab switches, fullscreen exits, copy/paste, right-click, keyboard shortcuts. Auto-submits the test when `maxViolations` threshold is reached.
 
 ### Database Schema
 Defined in `prisma/schema.prisma`. Prisma client output goes to `src/generated/prisma`. Key models: User, College, Department, PlacementDrive, Test, Question, TestAttempt, Answer, TestCase. Import types from `@/generated/prisma/client`.
 
 Key enums: `Role` (SUPER_ADMIN, COLLEGE_ADMIN, STUDENT), `QuestionType` (SINGLE_SELECT, MULTI_SELECT, CODING), `DriveStatus` (DRAFT, UPCOMING, ACTIVE, COMPLETED, CANCELLED), `TestStatus` (DRAFT, PUBLISHED, CLOSED), `AttemptStatus` (IN_PROGRESS, SUBMITTED, TIMED_OUT), `CodingLanguage` (PYTHON, JAVA, C, CPP).
 
-Question `options` and `correctOptionIds` are JSON fields. `options` stores `Array<{id: string, text: string}>`, `correctOptionIds` stores `string[]`. Answer `selectedOptionIds` follows the same `string[]` pattern. TestAttempt has a `@@unique([testId, studentId])` constraint (one attempt per student per test).
+Question `options` and `correctOptionIds` are JSON fields. `options` stores `Array<{id: string, text: string}>`, `correctOptionIds` stores `string[]`. Answer `selectedOptionIds` follows the same `string[]` pattern. TestAttempt has a `@@unique([testId, studentId])` constraint (one attempt per student per test). Questions support `negativeMarks` for penalty scoring. TestAttempt tracks proctoring violations (`tabSwitchCount`, `fullscreenExitCount`, `copyPasteAttempts`) with a configurable `maxViolations` threshold on the Test model.
 
 ### Authentication & Authorization
 - Middleware checks `better-auth.session_token` (dev) or `__Secure-better-auth.session_token` (prod) cookie on all non-public routes
@@ -80,6 +81,7 @@ Question `options` and `correctOptionIds` are JSON fields. `options` stores `Arr
   ```
 - API routes use role-based filtering: STUDENT sees own data, COLLEGE_ADMIN sees their college's data, SUPER_ADMIN sees all
 - Request bodies are validated with Zod `schema.safeParse(body)`
+- Handle Prisma unique constraint violations with error code `P2002` for race conditions (e.g., duplicate test attempts)
 
 Key API endpoints:
 - `/api/auth/**` — Better Auth + custom `/register-college-admin`, `/register-student`
@@ -100,6 +102,8 @@ Key API endpoints:
 - `src/components/test/test-interface.tsx` is the core test-taking component (proctoring, timer, question rendering, code editor, submission)
 - Toast notifications use `sonner` (`toast.success()`, `toast.error()`)
 - IDs generated with `nanoid`; dates handled with `date-fns`
+- Analytics charts use `recharts` (bar charts, pie charts for college/test statistics)
+- Classname utility: `cn()` from `src/lib/utils.ts` (merges `clsx` + `tailwind-merge`)
 
 ### Environment Variables
 Required in `.env`: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, `JUDGE0_API_URL` (default `http://localhost:2358` for local Docker). Optional: `JUDGE0_API_KEY` (only for RapidAPI-hosted Judge0).

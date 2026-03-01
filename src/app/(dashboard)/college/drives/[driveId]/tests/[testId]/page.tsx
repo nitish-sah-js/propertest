@@ -44,7 +44,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Loader2, Plus, Trash2, BarChart3, Upload, Eye, X, Search, Users } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Trash2, BarChart3, Upload, Eye, X, Search, Users, BookOpen } from "lucide-react";
 
 interface TestData {
   id: string;
@@ -682,6 +682,14 @@ export default function TestDetailPage() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link
+                href={`/college/drives/${params.driveId}/tests/${params.testId}/questions/import-library`}
+              >
+                <BookOpen />
+                Import from Library
+              </Link>
+            </Button>
             <Button variant="outline" asChild>
               <Link
                 href={`/college/drives/${params.driveId}/tests/${params.testId}/questions/upload`}

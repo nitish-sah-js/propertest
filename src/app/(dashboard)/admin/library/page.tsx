@@ -1,0 +1,348 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Loader2, Plus, Trash2, Upload, Search, Pencil } from "lucide-react";
+
+interface LibraryQuestion {
+  id: string;
+  questionText: string;
+  questionType: string;
+  category: string;
+  difficulty: string;
+  marks: number;
+  createdBy: { name: string };
+}
+
+interface PaginatedResponse {
+  questions: LibraryQuestion[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+const difficultyColor: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  EASY: "secondary",
+  MEDIUM: "default",
+  HARD: "destructive",
+};
+
+export default function AdminLibraryPage() {
+  const [data, setData] = useState<PaginatedResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("");
+  const [difficulty, setDifficulty] = useState("");
+  const [type, setType] = useState("");
+  const [page, setPage] = useState(1);
+
+  const [categories, setCategories] = useState<string[]>([]);
+
+  const fetchQuestions = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (category) params.set("category", category);
+      if (difficulty) params.set("difficulty", difficulty);
+      if (type) params.set("type", type);
+      params.set("page", page.toString());
+      params.set("limit", "20");
+
+      const res = await fetch(`/api/library/questions?${params}`);
+      if (!res.ok) throw new Error("Failed to fetch questions");
+      const json: PaginatedResponse = await res.json();
+      setData(json);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to load questions");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [search, category, difficulty, type, page]);
+
+  useEffect(() => {
+    fetchQuestions();
+  }, [fetchQuestions]);
+
+  useEffect(() => {
+    fetch("/api/library/categories")
+      .then((res) => res.json())
+      .then((cats: string[]) => setCategories(cats))
+      .catch(() => {});
+  }, []);
+
+  // Reset to page 1 on filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [search, category, difficulty, type]);
+
+  async function handleDelete(questionId: string) {
+    setDeletingId(questionId);
+    try {
+      const res = await fetch(`/api/library/questions/${questionId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete question");
+      toast.success("Question deleted");
+      fetchQuestions();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Something went wrong");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Question Library</h1>
+          <p className="text-muted-foreground">
+            Manage shared questions that college admins can import into tests.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/admin/library/upload">
+              <Upload />
+              Upload CSV
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/admin/library/new">
+              <Plus />
+              Add Question
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-3">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Search questions..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={difficulty} onValueChange={setDifficulty}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="All Difficulty" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Difficulty</SelectItem>
+                <SelectItem value="EASY">Easy</SelectItem>
+                <SelectItem value="MEDIUM">Medium</SelectItem>
+                <SelectItem value="HARD">Hard</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={type} onValueChange={setType}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="SINGLE_SELECT">Single Select</SelectItem>
+                <SelectItem value="MULTI_SELECT">Multi Select</SelectItem>
+                <SelectItem value="CODING">Coding</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Questions Table */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">#</TableHead>
+                  <TableHead>Question</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Difficulty</TableHead>
+                  <TableHead className="text-center">Marks</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {!data || data.questions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                      No questions found. Add questions to the library.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  data.questions.map((q, idx) => (
+                    <TableRow key={q.id}>
+                      <TableCell className="font-medium">
+                        {(data.page - 1) * data.limit + idx + 1}
+                      </TableCell>
+                      <TableCell className="max-w-md truncate">
+                        {q.questionText.length > 80
+                          ? q.questionText.substring(0, 80) + "..."
+                          : q.questionText}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {q.questionType === "CODING"
+                            ? "Coding"
+                            : q.questionType === "SINGLE_SELECT"
+                              ? "Single"
+                              : "Multi"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{q.category}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={difficultyColor[q.difficulty] ?? "secondary"}>
+                          {q.difficulty}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">{q.marks}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link href={`/admin/library/${q.id}`}>
+                              <Pencil className="size-4" />
+                            </Link>
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Question</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure? This will permanently remove this question from the library.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDelete(q.id)}
+                                  disabled={deletingId === q.id}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  {deletingId === q.id && <Loader2 className="animate-spin" />}
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination */}
+          {data && data.totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Showing {(data.page - 1) * data.limit + 1}–
+                {Math.min(data.page * data.limit, data.total)} of {data.total}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={page >= data.totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}

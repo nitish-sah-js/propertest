@@ -223,7 +223,7 @@ export default function DriveDetailPage() {
           </Link>
         </Button>
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold tracking-tight text-balance">{drive.title}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-balance min-w-0">{drive.title}</h1>
           <Badge variant={statusVariant[drive.status] ?? "secondary"}>
             {drive.status}
           </Badge>

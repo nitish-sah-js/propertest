@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function RegisterCollegeAdminPage() {
@@ -58,9 +59,9 @@ export default function RegisterCollegeAdminPage() {
   }
 
   return (
-    <Card>
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl">College Admin Registration</CardTitle>
+    <Card className="shadow-sm">
+      <CardHeader className="text-center pb-4">
+        <CardTitle className="text-xl">College Admin Registration</CardTitle>
         <CardDescription>
           Register as a college administrator with your college code
         </CardDescription>
@@ -71,7 +72,8 @@ export default function RegisterCollegeAdminPage() {
             <Label htmlFor="name">Full Name</Label>
             <Input
               id="name"
-              placeholder="John Doe"
+              name="name"
+              placeholder="Jane Smith"
               autoComplete="name"
               value={formData.name}
               onChange={(e) => updateField("name", e.target.value)}
@@ -82,9 +84,11 @@ export default function RegisterCollegeAdminPage() {
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              name="email"
               type="email"
               placeholder="you@example.com"
               autoComplete="email"
+              spellCheck={false}
               value={formData.email}
               onChange={(e) => updateField("email", e.target.value)}
               required
@@ -94,21 +98,24 @@ export default function RegisterCollegeAdminPage() {
             <Label htmlFor="password">Password</Label>
             <Input
               id="password"
+              name="new-password"
               type="password"
-              placeholder="Minimum 8 characters"
               autoComplete="new-password"
               value={formData.password}
               onChange={(e) => updateField("password", e.target.value)}
               required
               minLength={8}
             />
+            <p className="text-xs text-muted-foreground">Must be at least 8 characters</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="collegeCode">College Code</Label>
             <Input
               id="collegeCode"
-              placeholder="Enter your college code"
+              name="college-code"
+              placeholder="Provided by your institution"
               autoComplete="off"
+              spellCheck={false}
               value={formData.collegeCode}
               onChange={(e) => updateField("collegeCode", e.target.value)}
               required
@@ -117,12 +124,32 @@ export default function RegisterCollegeAdminPage() {
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Registering..." : "Register as College Admin"}
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+                Creating account…
+              </>
+            ) : (
+              "Register as College Admin"
+            )}
           </Button>
-          <div className="text-sm text-center space-y-1">
+
+          <div className="relative w-full">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-card px-2 text-muted-foreground">or</span>
+            </div>
+          </div>
+
+          <div className="text-center text-sm text-muted-foreground space-y-1.5">
             <p>
               Already have an account?{" "}
-              <Link href="/login" className="text-primary hover:underline">
+              <Link
+                href="/login"
+                className="font-medium text-foreground underline-offset-4 hover:underline"
+              >
                 Sign in
               </Link>
             </p>
@@ -130,7 +157,7 @@ export default function RegisterCollegeAdminPage() {
               Student?{" "}
               <Link
                 href="/register/student"
-                className="text-primary hover:underline"
+                className="font-medium text-foreground underline-offset-4 hover:underline"
               >
                 Register here
               </Link>

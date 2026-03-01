@@ -10,7 +10,7 @@ import { Briefcase, ClipboardList, Users, CheckCircle } from "lucide-react";
 
 export default async function CollegeDashboardPage() {
   const session = await getSession();
-  const user = session!.user as { id: string; collegeId: string };
+  const user = session!.user as { id: string; name: string; collegeId: string };
   const collegeId = user.collegeId;
 
   const [driveCount, testCount, studentCount, activeTestCount] =
@@ -55,26 +55,35 @@ export default async function CollegeDashboardPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-balance">Dashboard</h1>
-        <p className="text-muted-foreground">
+    <div className="space-y-8">
+      <div className="space-y-1">
+        <h1 className="text-3xl font-bold tracking-tight text-balance">
+          Welcome back, {user.name.split(" ")[0]}
+        </h1>
+        <p className="text-sm text-muted-foreground">
           Overview of your college placement activities.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <Card key={stat.title}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">
+          <Card
+            key={stat.title}
+            className="shadow-sm transition-shadow duration-200 hover:shadow-md"
+          >
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
                 {stat.title}
               </CardTitle>
-              <stat.icon className="size-5 text-muted-foreground" />
+              <div className="shrink-0 rounded-lg bg-muted p-2">
+                <stat.icon className="size-4 text-muted-foreground" aria-hidden="true" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold tabular-nums">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-3xl font-bold tracking-tight tabular-nums">
+                {stat.value}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
                 {stat.description}
               </p>
             </CardContent>

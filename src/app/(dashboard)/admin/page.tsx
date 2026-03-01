@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth-guard";
 import {
   Card,
   CardContent,
@@ -8,6 +9,10 @@ import {
 import { Building2, Users, Briefcase, ClipboardList } from "lucide-react";
 
 export default async function AdminDashboardPage() {
+  const session = await getSession();
+  const user = session!.user as { name: string };
+  const firstName = user.name.split(" ")[0];
+
   const [collegeCount, userCount, driveCount, testCount] = await Promise.all([
     prisma.college.count(),
     prisma.user.count(),
@@ -45,7 +50,9 @@ export default async function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-balance">Dashboard</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-balance">
+          Welcome back, {firstName}
+        </h1>
         <p className="text-muted-foreground">
           Overview of your PrepZero platform.
         </p>

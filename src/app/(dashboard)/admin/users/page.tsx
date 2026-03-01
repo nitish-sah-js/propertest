@@ -8,10 +8,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { format } from "date-fns";
+import { Users } from "lucide-react";
 import type { Prisma, Role } from "@/generated/prisma/client";
 import { RoleFilter } from "./role-filter";
 import { DeleteUserButton } from "./delete-user-button";
+
+const dateFormatter = new Intl.DateTimeFormat("en", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
 
 const validRoles: Role[] = ["SUPER_ADMIN", "COLLEGE_ADMIN", "STUDENT"];
 
@@ -59,11 +65,13 @@ export default async function UsersListPage({ searchParams }: PageProps) {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-balance">Users</h1>
-          <p className="text-muted-foreground">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight text-balance">
+            Users
+          </h1>
+          <p className="text-sm text-muted-foreground">
             All registered users across the platform.
           </p>
         </div>
@@ -73,42 +81,56 @@ export default async function UsersListPage({ searchParams }: PageProps) {
       <div className="rounded-md border">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>College</TableHead>
-              <TableHead>Joined</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="px-4">Name</TableHead>
+              <TableHead className="px-4">Email</TableHead>
+              <TableHead className="px-4">Role</TableHead>
+              <TableHead className="px-4">College</TableHead>
+              <TableHead className="px-4">Joined</TableHead>
+              <TableHead className="px-4 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {users.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="h-24 text-center text-muted-foreground"
-                >
-                  No users found.
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={6} className="h-48 text-center">
+                  <div className="flex flex-col items-center gap-3 py-6">
+                    <div className="rounded-full bg-muted p-3">
+                      <Users
+                        className="size-6 text-muted-foreground"
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">No users found</p>
+                      <p className="text-xs text-muted-foreground">
+                        Try adjusting the role filter.
+                      </p>
+                    </div>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
               users.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.name}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
+                  <TableCell className="px-4 font-medium">
+                    {user.name}
+                  </TableCell>
+                  <TableCell className="px-4 text-muted-foreground">
+                    {user.email}
+                  </TableCell>
+                  <TableCell className="px-4">
                     <Badge variant={roleBadgeVariant[user.role]}>
                       {roleLabel[user.role]}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    {user.college ? user.college.name : "--"}
+                  <TableCell className="px-4 text-muted-foreground">
+                    {user.college?.name ?? "—"}
                   </TableCell>
-                  <TableCell>
-                    {format(new Date(user.createdAt), "MMM d, yyyy")}
+                  <TableCell className="px-4 tabular-nums text-muted-foreground">
+                    {dateFormatter.format(new Date(user.createdAt))}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="px-4 text-right">
                     <DeleteUserButton
                       userId={user.id}
                       userName={user.name}

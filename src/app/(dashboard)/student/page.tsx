@@ -196,7 +196,7 @@ export default async function StudentDashboardPage() {
                     key={test.id}
                     className="flex items-center justify-between rounded-lg border p-3"
                   >
-                    <div className="space-y-1">
+                    <div className="space-y-1 min-w-0">
                       <p className="text-sm font-medium leading-none">
                         {test.title}
                       </p>
@@ -248,7 +248,7 @@ export default async function StudentDashboardPage() {
                     href={`/student/results/${attempt.id}`}
                     className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors"
                   >
-                    <div className="space-y-1">
+                    <div className="space-y-1 min-w-0">
                       <p className="text-sm font-medium leading-none">
                         {attempt.test.title}
                       </p>

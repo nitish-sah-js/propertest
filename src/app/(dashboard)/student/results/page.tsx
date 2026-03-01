@@ -73,7 +73,7 @@ export default async function StudentResultsPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <FileText className="mx-auto size-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium">No results yet</h3>
+            <p className="text-lg font-medium">No results yet</p>
             <p className="text-sm text-muted-foreground mt-1">
               Complete a test to see your results here.
             </p>

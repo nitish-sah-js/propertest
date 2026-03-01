@@ -114,7 +114,7 @@ export default async function StudentTestsPage({
         <Card>
           <CardContent className="py-12 text-center">
             <ClipboardList className="mx-auto size-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium">No tests available</h3>
+            <p className="text-lg font-medium">No tests available</p>
             <p className="text-sm text-muted-foreground mt-1">
               There are no published tests at the moment.
             </p>

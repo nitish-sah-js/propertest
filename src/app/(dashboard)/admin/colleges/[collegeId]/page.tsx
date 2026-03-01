@@ -201,7 +201,7 @@ export default function CollegeDetailPage() {
           </Link>
         </Button>
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold tracking-tight text-balance">{college.name}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-balance min-w-0">{college.name}</h1>
           <Badge variant={college.isActive ? "default" : "secondary"}>
             {college.isActive ? "Active" : "Inactive"}
           </Badge>

@@ -66,7 +66,7 @@ export function Sidebar({ role }: { role: string }) {
   const navItems = getNavItems(role);
 
   return (
-    <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 border-r bg-background">
+    <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 border-r bg-muted/40">
       <div className="flex items-center h-16 px-6 border-b">
         <Link href="/" className="flex items-center gap-2">
           <FileText className="size-6 text-primary" aria-hidden="true" />
@@ -74,7 +74,7 @@ export function Sidebar({ role }: { role: string }) {
         </Link>
       </div>
       <ScrollArea className="flex-1 py-4">
-        <nav className="px-3 space-y-1">
+        <nav className="px-3 space-y-0.5" aria-label="Main navigation">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href ||
@@ -87,13 +87,14 @@ export function Sidebar({ role }: { role: string }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                   isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? "bg-primary/10 text-primary font-semibold"
+                    : "font-medium text-muted-foreground hover:bg-background hover:text-foreground"
                 )}
+                aria-current={isActive ? "page" : undefined}
               >
-                <item.icon className="size-4" aria-hidden="true" />
+                <item.icon className="size-4 shrink-0" aria-hidden="true" />
                 {item.title}
               </Link>
             );

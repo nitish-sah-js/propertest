@@ -356,7 +356,7 @@ export default function TestDetailPage() {
           </Link>
         </Button>
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold tracking-tight text-balance">{test.title}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-balance min-w-0">{test.title}</h1>
           <Badge variant={testStatusVariant[test.status] ?? "secondary"}>
             {test.status}
           </Badge>
@@ -741,7 +741,7 @@ export default function TestDetailPage() {
                     </TableCell>
                     <TableCell className="max-w-md truncate">
                       {question.questionText.length > 80
-                        ? question.questionText.substring(0, 80) + "..."
+                        ? question.questionText.substring(0, 80) + "…"
                         : question.questionText}
                     </TableCell>
                     <TableCell>

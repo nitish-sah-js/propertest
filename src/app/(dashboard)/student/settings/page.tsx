@@ -136,9 +136,9 @@ export default function StudentSettingsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-center space-y-3">
-          <Loader2 className="size-6 animate-spin mx-auto text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden="true" />
+          <p className="text-sm text-muted-foreground">Loading…</p>
         </div>
       </div>
     );
@@ -147,15 +147,15 @@ export default function StudentSettingsPage() {
   if (!profile) return null;
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-8">
+      <div className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight text-balance">Settings</h1>
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           View and update your profile information.
         </p>
       </div>
 
-      <Card className="max-w-2xl">
+      <Card className="max-w-2xl shadow-sm">
         <CardHeader>
           <CardTitle>Profile Information</CardTitle>
           <CardDescription>
@@ -163,40 +163,41 @@ export default function StudentSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Read-only fields */}
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">Email</Label>
-              <p className="text-sm font-medium">{profile.email}</p>
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">Email</p>
+              <div className="rounded-md bg-muted/50 px-3 py-2 text-sm font-medium">
+                {profile.email}
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">USN</Label>
-              <p className="text-sm font-medium font-mono">
-                {profile.usn || <span className="text-muted-foreground">&mdash;</span>}
-              </p>
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">USN</p>
+              <div className="rounded-md bg-muted/50 px-3 py-2 text-sm font-medium font-mono">
+                {profile.usn ?? <span className="font-sans text-muted-foreground">—</span>}
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">College</Label>
-              <p className="text-sm font-medium">
-                {profile.college?.name || <span className="text-muted-foreground">&mdash;</span>}
-              </p>
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">College</p>
+              <div className="rounded-md bg-muted/50 px-3 py-2 text-sm font-medium">
+                {profile.college?.name ?? <span className="text-muted-foreground">—</span>}
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">Department</Label>
-              <p className="text-sm font-medium">
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">Department</p>
+              <div className="rounded-md bg-muted/50 px-3 py-2 text-sm font-medium">
                 {profile.department ? (
-                  <>
+                  <span className="flex items-center gap-2">
                     {profile.department.name}
                     {profile.department.code && (
-                      <Badge variant="outline" className="ml-2">
+                      <Badge variant="outline" className="text-xs">
                         {profile.department.code}
                       </Badge>
                     )}
-                  </>
+                  </span>
                 ) : (
-                  <span className="text-muted-foreground">&mdash;</span>
+                  <span className="text-muted-foreground">—</span>
                 )}
-              </p>
+              </div>
             </div>
           </div>
 
@@ -204,10 +205,12 @@ export default function StudentSettingsPage() {
             <form onSubmit={handleSave} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">
-                  Name <span className="text-destructive">*</span>
+                  Name <span className="text-destructive" aria-hidden="true">*</span>
                 </Label>
                 <Input
                   id="name"
+                  name="name"
+                  autoComplete="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
@@ -230,9 +233,11 @@ export default function StudentSettingsPage() {
                 </Select>
               </div>
 
-              <div className="pt-4">
+              <div className="pt-2">
                 <Button type="submit" disabled={isSaving}>
-                  {isSaving && <Loader2 className="mr-2 size-4 animate-spin" />}
+                  {isSaving && (
+                    <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+                  )}
                   Save Changes
                 </Button>
               </div>
@@ -241,7 +246,7 @@ export default function StudentSettingsPage() {
         </CardContent>
       </Card>
 
-      <Card className="max-w-2xl">
+      <Card className="max-w-2xl shadow-sm">
         <CardHeader>
           <CardTitle>Change Password</CardTitle>
           <CardDescription>
@@ -254,7 +259,9 @@ export default function StudentSettingsPage() {
               <Label htmlFor="currentPassword">Current Password</Label>
               <Input
                 id="currentPassword"
+                name="current-password"
                 type="password"
+                autoComplete="current-password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 required
@@ -264,7 +271,9 @@ export default function StudentSettingsPage() {
               <Label htmlFor="newPassword">New Password</Label>
               <Input
                 id="newPassword"
+                name="new-password"
                 type="password"
+                autoComplete="new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
@@ -278,16 +287,20 @@ export default function StudentSettingsPage() {
               <Label htmlFor="confirmPassword">Confirm New Password</Label>
               <Input
                 id="confirmPassword"
+                name="confirm-password"
                 type="password"
+                autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 minLength={8}
               />
             </div>
-            <div className="pt-4">
+            <div className="pt-2">
               <Button type="submit" disabled={isChangingPassword}>
-                {isChangingPassword && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {isChangingPassword && (
+                  <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+                )}
                 Change Password
               </Button>
             </div>

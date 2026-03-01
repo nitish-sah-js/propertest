@@ -92,7 +92,7 @@ export function CollegeProfileSection() {
 
   return (
     <>
-      <Card className="max-w-2xl">
+      <Card className="max-w-2xl shadow-sm">
         <CardHeader>
           <CardTitle>Profile Information</CardTitle>
           <CardDescription>
@@ -101,13 +101,17 @@ export function CollegeProfileSection() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">Email</Label>
-              <p className="text-sm font-medium">{session.user.email}</p>
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">Email</p>
+              <div className="rounded-md bg-muted/50 px-3 py-2 text-sm font-medium">
+                {session.user.email}
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">Role</Label>
-              <p className="text-sm font-medium">College Admin</p>
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">Role</p>
+              <div className="rounded-md bg-muted/50 px-3 py-2 text-sm font-medium">
+                College Admin
+              </div>
             </div>
           </div>
 
@@ -115,19 +119,23 @@ export function CollegeProfileSection() {
             <form onSubmit={handleSave} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">
-                  Name <span className="text-destructive">*</span>
+                  Name <span className="text-destructive" aria-hidden="true">*</span>
                 </Label>
                 <Input
                   id="name"
+                  name="name"
+                  autoComplete="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
                 />
               </div>
 
-              <div className="pt-4">
+              <div className="pt-2">
                 <Button type="submit" disabled={isSaving}>
-                  {isSaving && <Loader2 className="mr-2 size-4 animate-spin" />}
+                  {isSaving && (
+                    <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+                  )}
                   Save Changes
                 </Button>
               </div>
@@ -136,7 +144,7 @@ export function CollegeProfileSection() {
         </CardContent>
       </Card>
 
-      <Card className="max-w-2xl">
+      <Card className="max-w-2xl shadow-sm">
         <CardHeader>
           <CardTitle>Change Password</CardTitle>
           <CardDescription>
@@ -149,7 +157,9 @@ export function CollegeProfileSection() {
               <Label htmlFor="currentPassword">Current Password</Label>
               <Input
                 id="currentPassword"
+                name="current-password"
                 type="password"
+                autoComplete="current-password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 required
@@ -159,7 +169,9 @@ export function CollegeProfileSection() {
               <Label htmlFor="newPassword">New Password</Label>
               <Input
                 id="newPassword"
+                name="new-password"
                 type="password"
+                autoComplete="new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
@@ -173,16 +185,20 @@ export function CollegeProfileSection() {
               <Label htmlFor="confirmPassword">Confirm New Password</Label>
               <Input
                 id="confirmPassword"
+                name="confirm-password"
                 type="password"
+                autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 minLength={8}
               />
             </div>
-            <div className="pt-4">
+            <div className="pt-2">
               <Button type="submit" disabled={isChangingPassword}>
-                {isChangingPassword && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {isChangingPassword && (
+                  <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+                )}
                 Change Password
               </Button>
             </div>

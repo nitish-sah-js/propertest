@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-guard";
+import { isStudentEligible } from "@/lib/test-eligibility";
 import { TestStatus } from "@/generated/prisma/client";
 
 const createTestSchema = z.object({
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
     }
     // SUPER_ADMIN: no additional filter
 
-    const tests = await prisma.test.findMany({
+    const allTests = await prisma.test.findMany({
       where,
       include: {
         drive: {
@@ -72,7 +73,19 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(tests);
+    // Filter by eligibility for students
+    if (user.role === "STUDENT") {
+      const student = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { id: true, departmentId: true, semester: true },
+      });
+      if (student) {
+        const tests = allTests.filter((test) => isStudentEligible(test, student));
+        return NextResponse.json(tests);
+      }
+    }
+
+    return NextResponse.json(allTests);
   } catch (error) {
     console.error("GET /api/tests error:", error);
     return NextResponse.json(

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-guard";
+import { isStudentEligible } from "@/lib/test-eligibility";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
@@ -35,31 +36,8 @@ export default async function StudentDashboardPage() {
     redirect("/login");
   }
 
-  const [availableTests, completedAttempts, allAttempts, upcomingTests, recentResults] =
+  const [allUpcomingTests, completedAttempts, allAttempts, recentResults, studentData] =
     await Promise.all([
-      prisma.test.count({
-        where: {
-          status: "PUBLISHED",
-          drive: { collegeId: user.collegeId },
-          attempts: {
-            none: { studentId: user.id },
-          },
-        },
-      }),
-      prisma.testAttempt.count({
-        where: {
-          studentId: user.id,
-          status: { in: ["SUBMITTED", "TIMED_OUT"] },
-        },
-      }),
-      prisma.testAttempt.findMany({
-        where: {
-          studentId: user.id,
-          status: { in: ["SUBMITTED", "TIMED_OUT"] },
-          percentage: { not: null },
-        },
-        select: { percentage: true },
-      }),
       prisma.test.findMany({
         where: {
           status: "PUBLISHED",
@@ -75,7 +53,20 @@ export default async function StudentDashboardPage() {
           _count: { select: { questions: true } },
         },
         orderBy: { createdAt: "desc" },
-        take: 5,
+      }),
+      prisma.testAttempt.count({
+        where: {
+          studentId: user.id,
+          status: { in: ["SUBMITTED", "TIMED_OUT"] },
+        },
+      }),
+      prisma.testAttempt.findMany({
+        where: {
+          studentId: user.id,
+          status: { in: ["SUBMITTED", "TIMED_OUT"] },
+          percentage: { not: null },
+        },
+        select: { percentage: true },
       }),
       prisma.testAttempt.findMany({
         where: {
@@ -94,7 +85,18 @@ export default async function StudentDashboardPage() {
         orderBy: { submittedAt: "desc" },
         take: 5,
       }),
+      prisma.user.findUnique({
+        where: { id: user.id },
+        select: { id: true, departmentId: true, semester: true },
+      }),
     ]);
+
+  // Filter tests by eligibility
+  const eligibleTests = studentData
+    ? allUpcomingTests.filter((test) => isStudentEligible(test, studentData))
+    : allUpcomingTests;
+  const availableTests = eligibleTests.length;
+  const upcomingTests = eligibleTests.slice(0, 5);
 
   const averageScore =
     allAttempts.length > 0

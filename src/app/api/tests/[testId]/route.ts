@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { getSession } from "@/lib/auth-guard";
+import { isStudentEligible } from "@/lib/test-eligibility";
 import { TestStatus } from "@/generated/prisma/client";
 
 const updateTestSchema = z.object({
@@ -71,6 +72,17 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     const { testId } = await params;
     const result = await getTestWithAuth(testId);
     if ("error" in result) return result.error;
+
+    // Students can only view tests they are eligible for
+    if (result.user.role === "STUDENT") {
+      const student = await prisma.user.findUnique({
+        where: { id: result.user.id },
+        select: { id: true, departmentId: true, semester: true },
+      });
+      if (!student || !isStudentEligible(result.test, student)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
 
     return NextResponse.json(result.test);
   } catch (error) {

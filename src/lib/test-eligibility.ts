@@ -11,13 +11,13 @@ interface StudentFields {
 }
 
 /**
- * Check if a student is eligible for a test based on eligibility criteria.
+ * Check if a student is eligible for a test.
  *
- * Logic:
- * - If ALL three criteria are null/empty → all students are eligible (default)
- * - Specific students list = OR override (always eligible regardless of dept/semester)
- * - Department + Semester = AND (must match both if both are set)
- * - A student is eligible if: (matches dept AND matches semester) OR (is in specific student list)
+ * Rules:
+ * - If ALL three criteria are empty/null → NO one can access (admin must set criteria)
+ * - allowedStudentIds (CSV/manual) = always grants access if student is listed
+ * - allowedDepartmentIds + allowedSemesters = AND (must match both when both are set)
+ * - Final: eligible if (in student list) OR (matches dept AND semester filters)
  */
 export function isStudentEligible(
   test: TestEligibilityFields,
@@ -33,21 +33,28 @@ export function isStudentEligible(
     ? (test.allowedStudentIds as string[])
     : [];
 
-  // No restrictions → all students eligible
+  // No criteria at all → no one is eligible
   if (deptIds.length === 0 && semesters.length === 0 && studentIds.length === 0) {
-    return true;
+    return false;
   }
 
-  // Specific students override
+  // Student explicitly listed via CSV/manual → always eligible
   if (studentIds.includes(student.id)) {
     return true;
   }
 
-  // Check department + semester (AND logic)
+  // If only CSV IDs were set (no dept/sem filters), student must be in the list
+  if (deptIds.length === 0 && semesters.length === 0) {
+    return false;
+  }
+
+  // Department + semester AND logic
   const deptMatch =
-    deptIds.length === 0 || (student.departmentId !== null && deptIds.includes(student.departmentId));
+    deptIds.length === 0 ||
+    (student.departmentId !== null && deptIds.includes(student.departmentId));
   const semesterMatch =
-    semesters.length === 0 || (student.semester !== null && semesters.includes(student.semester));
+    semesters.length === 0 ||
+    (student.semester !== null && semesters.includes(student.semester));
 
   return deptMatch && semesterMatch;
 }
@@ -71,37 +78,34 @@ export function buildEligibleStudentsWhere(
 
   const base = { collegeId, role: "STUDENT" as const };
 
-  // No restrictions → all college students
+  // No criteria → no students
   if (deptIds.length === 0 && semesters.length === 0 && studentIds.length === 0) {
-    return base;
+    return { ...base, id: "__none__" };
   }
 
-  // Build department + semester AND condition
-  const deptSemesterCondition: Record<string, unknown> = { ...base };
+  // Build dept+sem condition
+  const hasDeptSem = deptIds.length > 0 || semesters.length > 0;
+  const deptSemCondition: Record<string, unknown> = {};
   if (deptIds.length > 0) {
-    deptSemesterCondition.departmentId = { in: deptIds };
+    deptSemCondition.departmentId = { in: deptIds };
   }
   if (semesters.length > 0) {
-    deptSemesterCondition.semester = { in: semesters };
+    deptSemCondition.semester = { in: semesters };
   }
 
-  // If there are specific students, use OR: (dept+semester match) OR (in student list)
-  if (studentIds.length > 0) {
-    return {
-      ...base,
-      OR: [
-        // Remove base fields from deptSemesterCondition for OR clause since they're at top level
-        ...(deptIds.length > 0 || semesters.length > 0
-          ? [{
-              ...(deptIds.length > 0 ? { departmentId: { in: deptIds } } : {}),
-              ...(semesters.length > 0 ? { semester: { in: semesters } } : {}),
-            }]
-          : []),
-        { id: { in: studentIds } },
-      ],
-    };
+  // CSV only (no dept/sem)
+  if (!hasDeptSem && studentIds.length > 0) {
+    return { ...base, id: { in: studentIds } };
   }
 
-  // Only dept/semester filters, no specific students
-  return deptSemesterCondition;
+  // Dept/sem only (no CSV)
+  if (hasDeptSem && studentIds.length === 0) {
+    return { ...base, ...deptSemCondition };
+  }
+
+  // Both dept/sem AND CSV → OR logic
+  return {
+    ...base,
+    OR: [deptSemCondition, { id: { in: studentIds } }],
+  };
 }

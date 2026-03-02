@@ -238,6 +238,95 @@ export function parseQuestionsCSV(text: string): {
   return { questions, errors };
 }
 
+export interface EligibilityCSVStudent {
+  name: string;
+  email: string;
+  usn: string;
+  department: string;
+}
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ELIGIBILITY_HEADERS = ["name", "usn", "email", "department"];
+
+/**
+ * Parse a CSV with name, usn, email, department columns for bulk adding
+ * students to a test. Creates students in the DB if they don't already exist.
+ */
+export function parseEligibilityCSV(text: string): {
+  students: EligibilityCSVStudent[];
+  errors: string[];
+} {
+  const rows = parseCSV(text);
+  const students: EligibilityCSVStudent[] = [];
+  const errors: string[] = [];
+
+  if (rows.length === 0) {
+    errors.push("CSV file is empty");
+    return { students, errors };
+  }
+
+  const header = rows[0].map((h) => h.toLowerCase().trim());
+  const missingHeaders = ELIGIBILITY_HEADERS.filter((h) => !header.includes(h));
+  if (missingHeaders.length > 0) {
+    errors.push(`Missing headers: ${missingHeaders.join(", ")}`);
+    return { students, errors };
+  }
+
+  const colIndex = (name: string) => header.indexOf(name);
+  const seenUsns = new Set<string>();
+  const seenEmails = new Set<string>();
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNum = i + 1;
+
+    while (row.length < header.length) {
+      row.push("");
+    }
+
+    const name = row[colIndex("name")]?.trim();
+    const email = row[colIndex("email")]?.trim().toLowerCase();
+    const usn = row[colIndex("usn")]?.trim().toUpperCase();
+    const department = row[colIndex("department")]?.trim();
+
+    if (!name) {
+      errors.push(`Row ${rowNum}: Name is empty`);
+      continue;
+    }
+
+    if (!email || !EMAIL_REGEX.test(email)) {
+      errors.push(`Row ${rowNum}: Invalid email "${email || ""}"`);
+      continue;
+    }
+
+    if (seenEmails.has(email)) {
+      errors.push(`Row ${rowNum}: Duplicate email "${email}"`);
+      continue;
+    }
+
+    if (!usn) {
+      errors.push(`Row ${rowNum}: USN is empty`);
+      continue;
+    }
+
+    if (seenUsns.has(usn)) {
+      errors.push(`Row ${rowNum}: Duplicate USN "${usn}"`);
+      continue;
+    }
+
+    if (!department) {
+      errors.push(`Row ${rowNum}: Department is empty`);
+      continue;
+    }
+
+    seenEmails.add(email);
+    seenUsns.add(usn);
+    students.push({ name, email, usn, department });
+  }
+
+  return { students, errors };
+}
+
 /**
  * Generate a CSV template string for download.
  */

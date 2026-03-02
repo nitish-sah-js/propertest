@@ -44,7 +44,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Loader2, Plus, Trash2, BarChart3, Upload, Eye, X, Search, Users, BookOpen } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Trash2, BarChart3, Upload, Eye, X, Search, Users, BookOpen, FileUp } from "lucide-react";
+import { parseEligibilityCSV } from "@/lib/csv-parser";
 
 interface TestData {
   id: string;
@@ -127,6 +128,16 @@ export default function TestDetailPage() {
   const [searchResults, setSearchResults] = useState<StudentSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [eligibleCount, setEligibleCount] = useState<number | null>(null);
+  const [isProcessingCSV, setIsProcessingCSV] = useState(false);
+  const [csvDefaultPassword, setCsvDefaultPassword] = useState("");
+  const [csvResult, setCsvResult] = useState<{
+    added: number;
+    created: number;
+    existing: number;
+    alreadySelected: number;
+    errors: string[];
+    parseErrors: string[];
+  } | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -299,6 +310,99 @@ export default function TestDetailPage() {
     const timer = setTimeout(() => searchStudents(studentSearch), 300);
     return () => clearTimeout(timer);
   }, [studentSearch, searchStudents]);
+
+  async function handleCSVUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (csvDefaultPassword.length < 8) {
+      toast.error("Please set a default password (min 8 characters) before uploading");
+      e.target.value = "";
+      return;
+    }
+
+    setIsProcessingCSV(true);
+    setCsvResult(null);
+
+    try {
+      const text = await file.text();
+      const { students: parsedStudents, errors: parseErrors } = parseEligibilityCSV(text);
+
+      if (parsedStudents.length === 0) {
+        setCsvResult({ added: 0, created: 0, existing: 0, alreadySelected: 0, errors: [], parseErrors });
+        return;
+      }
+
+      const res = await fetch("/api/students/resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          students: parsedStudents,
+          defaultPassword: csvDefaultPassword,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to process students");
+      }
+
+      const data = await res.json();
+      const { found, created, existing, errors: apiErrors } = data;
+
+      const existingIds = new Set(allowedStudentIds);
+      let alreadySelected = 0;
+      const newStudents: StudentSearchResult[] = [];
+
+      for (const student of found) {
+        if (existingIds.has(student.id)) {
+          alreadySelected++;
+        } else {
+          newStudents.push({
+            id: student.id,
+            name: student.name,
+            usn: student.usn,
+            department: student.department,
+          });
+        }
+      }
+
+      if (newStudents.length > 0) {
+        const updatedIds = [...allowedStudentIds, ...newStudents.map((s) => s.id)];
+        setAllowedStudentIds(updatedIds);
+        setSelectedStudents((prev) => [...prev, ...newStudents]);
+
+        // Auto-save eligibility so it persists when navigating away
+        await fetch(`/api/tests/${params.testId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            allowedStudentIds: updatedIds,
+            allowedDepartmentIds: allowedDepartmentIds.length > 0 ? allowedDepartmentIds : null,
+            allowedSemesters: allowedSemesters.length > 0 ? allowedSemesters : null,
+          }),
+        });
+      }
+
+      setCsvResult({
+        added: newStudents.length,
+        created,
+        existing,
+        alreadySelected,
+        errors: apiErrors || [],
+        parseErrors,
+      });
+
+      if (newStudents.length > 0) {
+        toast.success(`${newStudents.length} student${newStudents.length !== 1 ? "s" : ""} added to eligibility (${created} newly created)`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to process CSV");
+    } finally {
+      setIsProcessingCSV(false);
+      e.target.value = "";
+    }
+  }
 
   // Fetch eligible count when eligibility criteria change
   useEffect(() => {
@@ -601,6 +705,101 @@ export default function TestDetailPage() {
                 className="pl-9"
               />
             </div>
+
+            {/* CSV Upload */}
+            <div className="rounded-md border p-3 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <FileUp className="size-4" />
+                Bulk Add via CSV
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Upload a CSV with columns: <span className="font-mono">name, usn, email, department</span>.
+                Existing students are matched by USN/email. New students are created with the default password.
+              </p>
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 space-y-1">
+                  <Label htmlFor="csvPassword" className="text-xs">Default password for new students</Label>
+                  <Input
+                    id="csvPassword"
+                    type="password"
+                    placeholder="Min 8 characters"
+                    value={csvDefaultPassword}
+                    onChange={(e) => setCsvDefaultPassword(e.target.value)}
+                  />
+                </div>
+                <label className={`inline-flex items-center gap-2 rounded-md border px-4 h-9 text-sm font-medium cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors shrink-0 ${isProcessingCSV || csvDefaultPassword.length < 8 ? "opacity-50 pointer-events-none" : ""}`}>
+                  {isProcessingCSV ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Upload className="size-4" />
+                  )}
+                  {isProcessingCSV ? "Processing..." : "Upload CSV"}
+                  <input
+                    type="file"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={handleCSVUpload}
+                    disabled={isProcessingCSV || csvDefaultPassword.length < 8}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* CSV Import Results */}
+            {csvResult && (
+              <div className="rounded-md border p-3 text-sm space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">CSV Import Results</span>
+                  <button
+                    type="button"
+                    onClick={() => setCsvResult(null)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+                {csvResult.added > 0 && (
+                  <p className="text-green-600">
+                    {csvResult.added} student{csvResult.added !== 1 ? "s" : ""} added to eligibility
+                    {csvResult.created > 0 && ` (${csvResult.created} newly created)`}
+                  </p>
+                )}
+                {csvResult.alreadySelected > 0 && (
+                  <p className="text-muted-foreground">
+                    {csvResult.alreadySelected} already selected (skipped)
+                  </p>
+                )}
+                {csvResult.errors.length > 0 && (
+                  <div>
+                    <p className="text-destructive">Errors:</p>
+                    <ul className="text-xs text-destructive/80 list-disc list-inside">
+                      {csvResult.errors.slice(0, 5).map((err, i) => (
+                        <li key={i}>{err}</li>
+                      ))}
+                      {csvResult.errors.length > 5 && (
+                        <li>...and {csvResult.errors.length - 5} more</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+                {csvResult.parseErrors.length > 0 && (
+                  <div>
+                    <p className="text-destructive">Parse errors:</p>
+                    <ul className="text-xs text-destructive/80 list-disc list-inside">
+                      {csvResult.parseErrors.slice(0, 5).map((err, i) => (
+                        <li key={i}>{err}</li>
+                      ))}
+                      {csvResult.parseErrors.length > 5 && (
+                        <li>...and {csvResult.parseErrors.length - 5} more</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+                {csvResult.added === 0 && csvResult.errors.length === 0 && csvResult.alreadySelected === 0 && csvResult.parseErrors.length === 0 && (
+                  <p className="text-muted-foreground">No students found in CSV.</p>
+                )}
+              </div>
+            )}
 
             {/* Search Results Dropdown */}
             {studentSearch && (

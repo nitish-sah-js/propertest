@@ -10,6 +10,7 @@ const optionSchema = z.object({
 
 const bulkQuestionSchema = z.object({
   questionText: z.string().min(1, "Question text is required"),
+  imageUrl: z.string().optional(),
   questionType: z.enum(["SINGLE_SELECT", "MULTI_SELECT"]),
   options: z.array(optionSchema).min(2, "At least 2 options are required"),
   correctOptionIds: z
@@ -90,6 +91,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         data: questions.map((q, idx) => ({
           testId,
           questionText: q.questionText,
+          imageUrl: q.imageUrl || null,
           questionType: q.questionType,
           options: q.options,
           correctOptionIds: q.correctOptionIds,

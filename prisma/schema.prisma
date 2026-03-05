@@ -189,6 +189,7 @@ model Question {
   id               String       @id @default(cuid())
   testId           String
   questionText     String
+  imageUrl         String?
   questionType     QuestionType @default(SINGLE_SELECT)
   options          Json         // Array of {id, text}
   correctOptionIds Json         // Array of string IDs

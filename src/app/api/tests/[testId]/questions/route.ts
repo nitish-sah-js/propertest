@@ -18,6 +18,7 @@ const testCaseSchema = z.object({
 
 const mcqQuestionSchema = z.object({
   questionText: z.string().min(1, "Question text is required"),
+  imageUrl: z.string().optional(),
   questionType: z.enum(["SINGLE_SELECT", "MULTI_SELECT"]).optional(),
   options: z.array(optionSchema).min(2, "At least 2 options are required"),
   correctOptionIds: z
@@ -31,6 +32,7 @@ const mcqQuestionSchema = z.object({
 
 const codingQuestionSchema = z.object({
   questionText: z.string().min(1, "Question text is required"),
+  imageUrl: z.string().optional(),
   questionType: z.literal("CODING"),
   testCases: z.array(testCaseSchema).min(1, "At least 1 test case is required"),
   marks: z.number().int().positive().optional(),
@@ -48,6 +50,7 @@ const createQuestionSchema = z.discriminatedUnion("questionType", [
 // Also accept the legacy format (no questionType defaults to SINGLE_SELECT with MCQ fields)
 const legacySchema = z.object({
   questionText: z.string().min(1, "Question text is required"),
+  imageUrl: z.string().optional(),
   questionType: z.nativeEnum(QuestionType).optional(),
   options: z.array(optionSchema).min(2).optional(),
   correctOptionIds: z.array(z.string()).min(1).optional(),
@@ -212,6 +215,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         data: {
           testId,
           questionText: data.questionText,
+          imageUrl: data.imageUrl || null,
           questionType: questionType as QuestionType,
           options: isCoding ? [] : data.options,
           correctOptionIds: isCoding ? [] : data.correctOptionIds,

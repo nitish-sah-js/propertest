@@ -45,6 +45,7 @@ interface SampleTestCase {
 interface Question {
   id: string;
   questionText: string;
+  imageUrl?: string | null;
   questionType: "SINGLE_SELECT" | "MULTI_SELECT" | "CODING";
   options: Option[];
   marks: number;
@@ -797,9 +798,19 @@ export function TestInterface({ testId }: TestInterfaceProps) {
                 </div>
 
                 {/* Question text */}
-                <QuestionText className="text-xl font-semibold leading-relaxed mb-8 text-foreground [&_p]:text-xl [&_p]:font-semibold">
+                <QuestionText className="text-xl font-semibold leading-relaxed mb-4 text-foreground [&_p]:text-xl [&_p]:font-semibold">
                   {currentQuestion.questionText}
                 </QuestionText>
+
+                {/* Question image */}
+                {currentQuestion.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={currentQuestion.imageUrl}
+                    alt="Question illustration"
+                    className="mb-8 max-h-64 rounded-md border object-contain"
+                  />
+                )}
 
                 {/* MCQ Options */}
                 {currentQuestion.questionType !== "CODING" && (

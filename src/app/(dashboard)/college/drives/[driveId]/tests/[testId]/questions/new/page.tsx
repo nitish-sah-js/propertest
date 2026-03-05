@@ -24,7 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowLeft, Loader2, Plus, Trash2, Code2, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, ImagePlus, Loader2, Plus, Trash2, Code2, Eye, EyeOff, X } from "lucide-react";
 import { QuestionText } from "@/components/ui/question-text";
 
 interface Option {
@@ -59,6 +59,7 @@ export default function NewQuestionPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [questionText, setQuestionText] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [questionType, setQuestionType] = useState("SINGLE_SELECT");
   const [options, setOptions] = useState<Option[]>([
     { id: generateOptionId(), text: "" },
@@ -156,6 +157,7 @@ export default function NewQuestionPage() {
 
       const data = {
         questionText,
+        imageUrl: imageUrl || undefined,
         questionType: "CODING",
         testCases: validTestCases.map((tc, idx) => ({
           input: tc.input,
@@ -208,6 +210,7 @@ export default function NewQuestionPage() {
 
       const data = {
         questionText,
+        imageUrl: imageUrl || undefined,
         questionType,
         options: filledOptions,
         correctOptionIds,
@@ -344,6 +347,46 @@ export default function NewQuestionPage() {
               <p className="text-xs text-muted-foreground">
                 Supports Markdown. Wrap code in <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]">```</code> fences for proper formatting.
               </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Image <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              {imageUrl ? (
+                <div className="relative inline-block">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imageUrl}
+                    alt="Question image"
+                    className="max-h-48 rounded-md border object-contain"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setImageUrl(null)}
+                    className="absolute -top-2 -right-2 rounded-full bg-destructive text-destructive-foreground p-0.5 shadow"
+                    aria-label="Remove image"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex cursor-pointer items-center gap-2 w-fit rounded-md border px-4 h-9 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
+                  <ImagePlus className="size-4" />
+                  Upload Image
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (ev) => setImageUrl(ev.target?.result as string);
+                      reader.readAsDataURL(file);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              )}
             </div>
 
             <div className="space-y-2">

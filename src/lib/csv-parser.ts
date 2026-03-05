@@ -1,5 +1,6 @@
 export interface CSVQuestion {
   questionText: string;
+  imageUrl?: string;
   questionType: "SINGLE_SELECT" | "MULTI_SELECT";
   options: { id: string; text: string }[];
   correctOptionIds: string[];
@@ -224,8 +225,14 @@ export function parseQuestionsCSV(text: string): {
 
     const explanation = row[colIndex("explanation")] || undefined;
 
+    // image_url is optional — only present if the column exists
+    const imageUrlIdx = header.indexOf("image_url");
+    const imageUrl =
+      imageUrlIdx !== -1 ? row[imageUrlIdx]?.trim() || undefined : undefined;
+
     questions.push({
       questionText,
+      imageUrl,
       questionType,
       options,
       correctOptionIds,
@@ -331,8 +338,8 @@ export function parseEligibilityCSV(text: string): {
  * Generate a CSV template string for download.
  */
 export function generateCSVTemplate(): string {
-  const header = EXPECTED_HEADERS.join(",");
-  const example1 = `"What is 2+2?","1","2","3","4","4",SINGLE_SELECT,1,0,""`;
-  const example2 = `"Select all prime numbers","2","3","4","5","1;2;4",MULTI_SELECT,2,0.5,"2, 3, and 5 are prime"`;
+  const header = [...EXPECTED_HEADERS, "image_url"].join(",");
+  const example1 = `"What is 2+2?","1","2","3","4","4",SINGLE_SELECT,1,0,"",""`;
+  const example2 = `"Select all prime numbers","2","3","4","5","1;2;4",MULTI_SELECT,2,0.5,"2, 3, and 5 are prime","https://example.com/image.png"`;
   return `${header}\n${example1}\n${example2}\n`;
 }

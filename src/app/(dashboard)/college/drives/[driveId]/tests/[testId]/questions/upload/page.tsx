@@ -21,13 +21,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Download, Loader2, Upload } from "lucide-react";
+import { ArrowLeft, Download, ImageIcon, Loader2, Upload } from "lucide-react";
 import {
   parseQuestionsCSV,
   generateCSVTemplate,
   type CSVQuestion,
   type CSVParseError,
 } from "@/lib/csv-parser";
+import { fileToCSVText } from "@/lib/spreadsheet";
 
 type Phase = "select" | "preview" | "uploading";
 
@@ -39,22 +40,34 @@ export default function BulkUploadPage() {
   const [questions, setQuestions] = useState<CSVQuestion[]>([]);
   const [errors, setErrors] = useState<CSVParseError[]>([]);
 
-  function handleDownloadTemplate() {
+  async function handleDownloadTemplate(format: "csv" | "xlsx") {
     const csv = generateCSVTemplate();
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "questions_template.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+
+    if (format === "xlsx") {
+      const { utils, writeFile } = await import("xlsx");
+      const rows = csv.trim().split("\n").map((line) =>
+        line.split(",").map((cell) => cell.replace(/^"|"$/g, "").replace(/""/g, '"'))
+      );
+      const ws = utils.aoa_to_sheet(rows);
+      const wb = utils.book_new();
+      utils.book_append_sheet(wb, ws, "Questions");
+      writeFile(wb, "questions_template.xlsx");
+    } else {
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "questions_template.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const text = await file.text();
+    const text = await fileToCSVText(file);
     const result = parseQuestionsCSV(text);
     setQuestions(result.questions);
     setErrors(result.errors);
@@ -108,7 +121,7 @@ export default function BulkUploadPage() {
           Bulk Upload Questions
         </h1>
         <p className="text-muted-foreground">
-          Upload MCQ questions from a CSV file.
+          Upload MCQ questions from a CSV or Excel file.
         </p>
       </div>
 
@@ -116,9 +129,9 @@ export default function BulkUploadPage() {
       {phase === "select" && (
         <Card className="max-w-2xl">
           <CardHeader>
-            <CardTitle>Upload CSV File</CardTitle>
+            <CardTitle>Upload File</CardTitle>
             <CardDescription>
-              Upload a CSV file with your questions. Download the template to
+              Upload a CSV or Excel (.xlsx) file with your questions. Download the template to
               see the expected format.
             </CardDescription>
           </CardHeader>
@@ -155,24 +168,32 @@ export default function BulkUploadPage() {
                   <code className="bg-muted px-1 rounded text-xs">explanation</code>{" "}
                   &mdash; optional
                 </li>
+                <li>
+                  <code className="bg-muted px-1 rounded text-xs">image_url</code>{" "}
+                  &mdash; optional, public URL to an image (e.g. https://...)
+                </li>
               </ul>
               <p className="text-xs text-muted-foreground">
                 Download the template to see a working example.
               </p>
             </div>
 
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={handleDownloadTemplate}>
+            <div className="flex flex-wrap gap-3">
+              <Button variant="outline" onClick={() => handleDownloadTemplate("csv")}>
                 <Download />
-                Download Template
+                Template (.csv)
+              </Button>
+              <Button variant="outline" onClick={() => handleDownloadTemplate("xlsx")}>
+                <Download />
+                Template (.xlsx)
               </Button>
               <Button asChild>
                 <label className="cursor-pointer">
                   <Upload />
-                  Select CSV File
+                  Select File
                   <input
                     type="file"
-                    accept=".csv"
+                    accept=".csv,.xlsx,.xls"
                     className="hidden"
                     onChange={handleFileChange}
                   />
@@ -222,6 +243,7 @@ export default function BulkUploadPage() {
                     <TableHead>Type</TableHead>
                     <TableHead className="text-center">Options</TableHead>
                     <TableHead className="text-center">Marks</TableHead>
+                    <TableHead className="text-center">Image</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -244,6 +266,27 @@ export default function BulkUploadPage() {
                         {q.options.length}
                       </TableCell>
                       <TableCell className="text-center">{q.marks}</TableCell>
+                      <TableCell className="text-center">
+                        {q.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={q.imageUrl}
+                            alt="preview"
+                            className="h-8 w-8 object-cover rounded mx-auto"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).style.display = "none";
+                              (e.currentTarget.nextSibling as HTMLElement | null)!.style.display = "flex";
+                            }}
+                          />
+                        ) : null}
+                        {q.imageUrl ? (
+                          <span className="hidden items-center justify-center text-muted-foreground">
+                            <ImageIcon className="size-4" />
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

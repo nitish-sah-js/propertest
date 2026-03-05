@@ -30,6 +30,7 @@ import {
   type CSVStudent,
 } from "@/lib/student-csv-parser";
 import type { CSVParseError } from "@/lib/csv-parser";
+import { fileToCSVText } from "@/lib/spreadsheet";
 
 type Phase = "loading" | "select" | "preview" | "passwords" | "uploading";
 
@@ -63,23 +64,33 @@ export default function StudentUploadPage() {
     fetchUsnStructure();
   }, []);
 
-  function handleDownloadTemplate() {
+  async function handleDownloadTemplate(format: "csv" | "xlsx") {
     if (!usnStructure?.usnFormat) return;
     const csv = generateStudentCSVTemplate(usnStructure.usnFormat);
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "students_template.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+
+    if (format === "xlsx") {
+      const { utils, writeFile } = await import("xlsx");
+      const rows = csv.trim().split("\n").map((line) => line.split(","));
+      const ws = utils.aoa_to_sheet(rows);
+      const wb = utils.book_new();
+      utils.book_append_sheet(wb, ws, "Students");
+      writeFile(wb, "students_template.xlsx");
+    } else {
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "students_template.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !usnStructure?.usnFormat) return;
 
-    const text = await file.text();
+    const text = await fileToCSVText(file);
     const result = parseStudentsCSV(
       text,
       usnStructure.usnFormat
@@ -193,7 +204,7 @@ export default function StudentUploadPage() {
           Bulk Upload Students
         </h1>
         <p className="text-muted-foreground">
-          Upload student accounts from a CSV file.
+          Upload student accounts from a CSV or Excel file.
         </p>
       </div>
 
@@ -217,15 +228,15 @@ export default function StudentUploadPage() {
           ) : (
             <Card className="max-w-2xl">
               <CardHeader>
-                <CardTitle>Upload CSV File</CardTitle>
+                <CardTitle>Upload File</CardTitle>
                 <CardDescription>
-                  Upload a CSV file with student details. Download the template
+                  Upload a CSV or Excel (.xlsx) file with student details. Download the template
                   to see the expected format.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="rounded-md border p-4 text-sm text-muted-foreground space-y-3">
-                  <p className="font-medium text-foreground">CSV Format</p>
+                  <p className="font-medium text-foreground">File Format</p>
                   <ul className="space-y-1.5 text-[13px]">
                     <li>
                       <code className="bg-muted px-1 rounded text-xs">name</code>
@@ -255,18 +266,22 @@ export default function StudentUploadPage() {
                   </ul>
                 </div>
 
-                <div className="flex gap-3">
-                  <Button variant="outline" onClick={handleDownloadTemplate}>
+                <div className="flex flex-wrap gap-3">
+                  <Button variant="outline" onClick={() => handleDownloadTemplate("csv")}>
                     <Download />
-                    Download Template
+                    Template (.csv)
+                  </Button>
+                  <Button variant="outline" onClick={() => handleDownloadTemplate("xlsx")}>
+                    <Download />
+                    Template (.xlsx)
                   </Button>
                   <Button asChild>
                     <label className="cursor-pointer">
                       <Upload />
-                      Select CSV File
+                      Select File
                       <input
                         type="file"
-                        accept=".csv"
+                        accept=".csv,.xlsx,.xls"
                         className="hidden"
                         onChange={handleFileChange}
                       />

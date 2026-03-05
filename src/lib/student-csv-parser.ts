@@ -8,19 +8,17 @@ export interface CSVStudent {
   semester: number;
 }
 
-const EXPECTED_HEADERS = ["name", "email", "usn", "semester"];
+const EXPECTED_HEADERS = ["name", "email", "usn", "department", "semester"];
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
- * Parse and validate a CSV string into student records,
- * extracting department codes from USNs.
+ * Parse and validate a CSV string into student records.
+ * Department code is read from an explicit "department" column.
  */
 export function parseStudentsCSV(
   text: string,
-  usnFormat: string,
-  deptStart: number,
-  deptLength: number
+  usnFormat: string
 ): { students: CSVStudent[]; errors: CSVParseError[] } {
   const rows = parseCSV(text);
   const students: CSVStudent[] = [];
@@ -58,6 +56,7 @@ export function parseStudentsCSV(
     const name = row[colIndex("name")]?.trim();
     const email = row[colIndex("email")]?.trim().toLowerCase();
     const usn = row[colIndex("usn")]?.trim().toUpperCase();
+    const deptCode = row[colIndex("department")]?.trim().toUpperCase();
     const semesterRaw = row[colIndex("semester")]?.trim();
 
     if (!name) {
@@ -93,6 +92,11 @@ export function parseStudentsCSV(
       continue;
     }
 
+    if (!deptCode) {
+      errors.push({ row: rowNum, message: "Department is empty" });
+      continue;
+    }
+
     if (!semesterRaw) {
       errors.push({ row: rowNum, message: "Semester is empty" });
       continue;
@@ -107,8 +111,6 @@ export function parseStudentsCSV(
       continue;
     }
 
-    const deptCode = usn.substring(deptStart, deptStart + deptLength);
-
     seenEmails.add(email);
     seenUsns.add(usn);
     students.push({ name, email, usn, deptCode, semester });
@@ -122,9 +124,9 @@ export function parseStudentsCSV(
  */
 export function generateStudentCSVTemplate(usnFormat: string): string {
   const header = EXPECTED_HEADERS.join(",");
-  const example1 = `John Doe,john@example.com,${usnFormat},3`;
+  const example1 = `John Doe,john@example.com,${usnFormat},CS,3`;
   // Create a second example with a slightly different USN
   const usn2 = usnFormat.slice(0, -3) + "002";
-  const example2 = `Jane Smith,jane@example.com,${usn2},5`;
+  const example2 = `Jane Smith,jane@example.com,${usn2},EC,5`;
   return `${header}\n${example1}\n${example2}\n`;
 }

@@ -36,8 +36,6 @@ type Phase = "loading" | "select" | "preview" | "passwords" | "uploading";
 interface UsnStructure {
   configured: boolean;
   usnFormat?: string;
-  usnDeptStart?: number;
-  usnDeptLength?: number;
 }
 
 export default function StudentUploadPage() {
@@ -84,9 +82,7 @@ export default function StudentUploadPage() {
     const text = await file.text();
     const result = parseStudentsCSV(
       text,
-      usnStructure.usnFormat,
-      usnStructure.usnDeptStart!,
-      usnStructure.usnDeptLength!
+      usnStructure.usnFormat
     );
 
     const allErrors = [...result.errors];
@@ -249,16 +245,14 @@ export default function StudentUploadPage() {
                       )
                     </li>
                     <li>
+                      <code className="bg-muted px-1 rounded text-xs">department</code>
+                      {" "}&mdash; department code (must match a configured department)
+                    </li>
+                    <li>
                       <code className="bg-muted px-1 rounded text-xs">semester</code>
                       {" "}&mdash; current semester (1&ndash;8)
                     </li>
                   </ul>
-                  <p className="text-xs text-muted-foreground">
-                    Department is auto-extracted from USN positions{" "}
-                    {usnStructure.usnDeptStart}&ndash;
-                    {usnStructure.usnDeptStart! + usnStructure.usnDeptLength! - 1}.
-                    Make sure departments have matching codes configured.
-                  </p>
                 </div>
 
                 <div className="flex gap-3">

@@ -6,12 +6,14 @@ import { getSession } from "@/lib/auth-guard";
 
 const createCollegeSchema = z.object({
   name: z.string().min(1, "Name is required"),
+  code: z.string().min(1).optional(),
   address: z.string().optional(),
   website: z.string().url().optional().or(z.literal("")),
   logoUrl: z.string().url().optional().or(z.literal("")),
   contactEmail: z.string().email().optional().or(z.literal("")),
   contactPhone: z.string().optional(),
   isActive: z.boolean().optional(),
+  usnFormat: z.string().optional().nullable(),
 });
 
 // GET /api/colleges — list all colleges (super admin only)
@@ -71,7 +73,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const code = nanoid(8).toUpperCase();
+    const code = parsed.data.code || nanoid(8).toUpperCase();
 
     const college = await prisma.college.create({
       data: {

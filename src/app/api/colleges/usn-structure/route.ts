@@ -19,8 +19,6 @@ export async function GET() {
       where: { id: user.collegeId },
       select: {
         usnFormat: true,
-        usnDeptStart: true,
-        usnDeptLength: true,
       },
     });
 
@@ -28,15 +26,13 @@ export async function GET() {
       return NextResponse.json({ error: "College not found" }, { status: 404 });
     }
 
-    if (!college.usnFormat || college.usnDeptStart == null || college.usnDeptLength == null) {
+    if (!college.usnFormat) {
       return NextResponse.json({ configured: false });
     }
 
     return NextResponse.json({
       configured: true,
       usnFormat: college.usnFormat,
-      usnDeptStart: college.usnDeptStart,
-      usnDeptLength: college.usnDeptLength,
     });
   } catch (error) {
     console.error("GET /api/colleges/usn-structure error:", error);

@@ -26,13 +26,18 @@ export default function NewCollegePage() {
     setIsSubmitting(true);
 
     const formData = new FormData(e.currentTarget);
-    const data = {
+    const usnFormat = formData.get("usnFormat") as string;
+    const data: Record<string, unknown> = {
       name: formData.get("name") as string,
+      code: (formData.get("code") as string) || undefined,
       address: formData.get("address") as string,
       website: formData.get("website") as string,
       contactEmail: formData.get("contactEmail") as string,
       contactPhone: formData.get("contactPhone") as string,
     };
+    if (usnFormat) {
+      data.usnFormat = usnFormat;
+    }
 
     try {
       const res = await fetch("/api/colleges", {
@@ -77,7 +82,7 @@ export default function NewCollegePage() {
           <CardTitle>College Details</CardTitle>
           <CardDescription>
             Fill in the information below. A unique college code will be
-            generated automatically.
+            generated automatically if not provided.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -92,6 +97,19 @@ export default function NewCollegePage() {
                 placeholder="e.g. Indian Institute of Technology Delhi"
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="code">College Code</Label>
+              <Input
+                id="code"
+                name="code"
+                placeholder="e.g. RVCE2026 (auto-generated if empty)"
+                className="font-mono uppercase"
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave empty to auto-generate. Students use this code to register.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -133,6 +151,27 @@ export default function NewCollegePage() {
                   type="tel"
                   placeholder="+91 9876543210"
                 />
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-md border p-4">
+              <div>
+                <h3 className="text-sm font-medium">USN Structure</h3>
+                <p className="text-xs text-muted-foreground">
+                  Set the expected USN format for validating student uploads.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="usnFormat">Example USN Format</Label>
+                <Input
+                  id="usnFormat"
+                  name="usnFormat"
+                  placeholder="e.g. 1MS20CS001"
+                  className="font-mono uppercase"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Used to validate USN length during bulk student uploads.
+                </p>
               </div>
             </div>
 

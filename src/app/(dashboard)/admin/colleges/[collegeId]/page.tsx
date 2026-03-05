@@ -31,8 +31,6 @@ interface CollegeData {
   contactPhone: string | null;
   isActive: boolean;
   usnFormat: string | null;
-  usnDeptStart: number | null;
-  usnDeptLength: number | null;
   createdAt: string;
   updatedAt: string;
   _count: {
@@ -55,11 +53,8 @@ export default function CollegeDetailPage() {
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [isActive, setIsActive] = useState(true);
-
+  const [code, setCode] = useState("");
   const [usnFormat, setUsnFormat] = useState("");
-  const [usnDeptStart, setUsnDeptStart] = useState("");
-  const [usnDeptLength, setUsnDeptLength] = useState("");
-  const [isSavingUsn, setIsSavingUsn] = useState(false);
 
   useEffect(() => {
     async function fetchCollege() {
@@ -76,9 +71,8 @@ export default function CollegeDetailPage() {
         setContactEmail(data.contactEmail || "");
         setContactPhone(data.contactPhone || "");
         setIsActive(data.isActive);
+        setCode(data.code);
         setUsnFormat(data.usnFormat || "");
-        setUsnDeptStart(data.usnDeptStart != null ? String(data.usnDeptStart) : "");
-        setUsnDeptLength(data.usnDeptLength != null ? String(data.usnDeptLength) : "");
       } catch (error) {
         toast.error(
           error instanceof Error ? error.message : "Failed to load college"
@@ -102,11 +96,13 @@ export default function CollegeDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
+          code,
           address,
           website,
           contactEmail,
           contactPhone,
           isActive,
+          usnFormat: usnFormat || null,
         }),
       });
 
@@ -123,56 +119,6 @@ export default function CollegeDetailPage() {
       );
     } finally {
       setIsSaving(false);
-    }
-  }
-
-  // Compute live preview of extracted department code
-  const deptStart = parseInt(usnDeptStart, 10);
-  const deptLength = parseInt(usnDeptLength, 10);
-  const usnPreviewValid =
-    usnFormat.length > 0 &&
-    !isNaN(deptStart) &&
-    !isNaN(deptLength) &&
-    deptStart >= 0 &&
-    deptLength >= 1 &&
-    deptStart + deptLength <= usnFormat.length;
-
-  const extractedDeptCode = usnPreviewValid
-    ? usnFormat.substring(deptStart, deptStart + deptLength)
-    : null;
-
-  async function handleSaveUsn(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-
-    if (!usnPreviewValid) {
-      toast.error("Invalid USN structure configuration");
-      return;
-    }
-
-    setIsSavingUsn(true);
-    try {
-      const res = await fetch(`/api/colleges/${params.collegeId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          usnFormat,
-          usnDeptStart: deptStart,
-          usnDeptLength: deptLength,
-        }),
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "Failed to save USN structure");
-      }
-
-      toast.success("USN structure saved successfully");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Something went wrong"
-      );
-    } finally {
-      setIsSavingUsn(false);
     }
   }
 
@@ -219,7 +165,7 @@ export default function CollegeDetailPage() {
           <CardContent>
             <div className="text-2xl font-bold font-mono">{college.code}</div>
             <p className="text-xs text-muted-foreground">
-              Auto-generated, read-only
+              Editable in the form below
             </p>
           </CardContent>
         </Card>
@@ -275,6 +221,22 @@ export default function CollegeDetailPage() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="code">
+                College Code <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                className="font-mono uppercase"
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Students use this code to register with the college.
+              </p>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="address">Address</Label>
               <Textarea
                 id="address"
@@ -326,6 +288,28 @@ export default function CollegeDetailPage() {
               <Label htmlFor="isActive">College is active</Label>
             </div>
 
+            <div className="space-y-4 rounded-md border p-4">
+              <div>
+                <h3 className="text-sm font-medium">USN Structure</h3>
+                <p className="text-xs text-muted-foreground">
+                  Set the expected USN format for validating student uploads.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="usnFormat">Example USN Format</Label>
+                <Input
+                  id="usnFormat"
+                  value={usnFormat}
+                  onChange={(e) => setUsnFormat(e.target.value.toUpperCase())}
+                  placeholder="e.g. 1MS20CS001"
+                  className="font-mono"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Used to validate USN length during bulk student uploads.
+                </p>
+              </div>
+            </div>
+
             <div className="flex gap-3 pt-4">
               <Button type="submit" disabled={isSaving}>
                 {isSaving && <Loader2 className="mr-2 size-4 animate-spin" />}
@@ -333,101 +317,6 @@ export default function CollegeDetailPage() {
               </Button>
               <Button type="button" variant="outline" asChild>
                 <Link href="/admin/colleges">Cancel</Link>
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card className="max-w-2xl">
-        <CardHeader>
-          <CardTitle>USN Structure</CardTitle>
-          <CardDescription>
-            Configure how the University Seat Number (USN) maps to departments.
-            This is used when bulk-uploading students via CSV to auto-assign
-            departments.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSaveUsn} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="usnFormat">Example USN Format</Label>
-              <Input
-                id="usnFormat"
-                value={usnFormat}
-                onChange={(e) => setUsnFormat(e.target.value.toUpperCase())}
-                placeholder="e.g. 1MS20CS001"
-                className="font-mono"
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter a sample USN from your college
-              </p>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="usnDeptStart">
-                  Dept Code Start Index (0-based)
-                </Label>
-                <Input
-                  id="usnDeptStart"
-                  type="number"
-                  min={0}
-                  value={usnDeptStart}
-                  onChange={(e) => setUsnDeptStart(e.target.value)}
-                  placeholder="e.g. 4"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="usnDeptLength">Dept Code Length</Label>
-                <Input
-                  id="usnDeptLength"
-                  type="number"
-                  min={1}
-                  value={usnDeptLength}
-                  onChange={(e) => setUsnDeptLength(e.target.value)}
-                  placeholder="e.g. 2"
-                />
-              </div>
-            </div>
-
-            {usnFormat && (
-              <div className="rounded-md border p-3 bg-muted/50">
-                <p className="text-sm font-medium mb-1">Preview</p>
-                <div className="font-mono text-lg tracking-wider">
-                  {usnPreviewValid ? (
-                    <>
-                      <span className="text-muted-foreground">
-                        {usnFormat.substring(0, deptStart)}
-                      </span>
-                      <span className="bg-primary text-primary-foreground px-0.5 rounded">
-                        {extractedDeptCode}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {usnFormat.substring(deptStart + deptLength)}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-destructive text-sm font-sans">
-                      Invalid range &mdash; check start index and length
-                    </span>
-                  )}
-                </div>
-                {usnPreviewValid && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Extracted department code:{" "}
-                    <code className="bg-muted px-1 rounded">
-                      {extractedDeptCode}
-                    </code>
-                  </p>
-                )}
-              </div>
-            )}
-
-            <div className="flex gap-3 pt-4">
-              <Button type="submit" disabled={isSavingUsn || !usnPreviewValid}>
-                {isSavingUsn && <Loader2 className="mr-2 size-4 animate-spin" />}
-                Save USN Structure
               </Button>
             </div>
           </form>

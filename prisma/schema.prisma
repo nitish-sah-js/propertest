@@ -135,8 +135,6 @@ model College {
   contactPhone String?
   isActive     Boolean  @default(true)
   usnFormat     String?
-  usnDeptStart  Int?
-  usnDeptLength Int?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

@@ -68,7 +68,7 @@ Judge0 config is in `judge0.conf` (referenced by `docker-compose.yml`).
 ### Database Schema
 Defined in `prisma/schema.prisma`. Prisma client output goes to `src/generated/prisma`. Prisma config in `prisma.config.ts`. Import types from `@/generated/prisma/client`.
 
-Key models: User, College, Department, PlacementDrive, Test, Question, TestAttempt, Answer, TestCase, LibraryQuestion, LibraryTestCase.
+Key models: User, College, Department, PlacementDrive, Test, Question, TestAttempt, Answer, TestCase, LibraryQuestion, LibraryTestCase, Category.
 
 Key enums: `Role` (SUPER_ADMIN, COLLEGE_ADMIN, STUDENT), `QuestionType` (SINGLE_SELECT, MULTI_SELECT, CODING), `DriveStatus` (DRAFT, UPCOMING, ACTIVE, COMPLETED, CANCELLED), `TestStatus` (DRAFT, PUBLISHED, CLOSED), `AttemptStatus` (IN_PROGRESS, SUBMITTED, TIMED_OUT), `CodingLanguage` (PYTHON, JAVA, C, CPP), `Difficulty` (EASY, MEDIUM, HARD), `ResultVisibility` (AFTER_SUBMISSION, MANUAL_RELEASE).
 
@@ -81,6 +81,8 @@ Key enums: `Role` (SUPER_ADMIN, COLLEGE_ADMIN, STUDENT), `QuestionType` (SINGLE_
 **TestAttempt proctoring fields:** `tabSwitchCount`, `fullscreenExitCount`, `copyPasteAttempts`, `totalViolations`, `maxViolations` (default 5), `autoSubmitted`.
 
 **Library system:** `LibraryQuestion` stores reusable questions with `category` (string) and `difficulty` (enum). `LibraryTestCase` stores test cases for library coding questions. Library questions can be imported into specific tests.
+
+**Category system:** `Category` model stores managed categories with `@@unique([name, collegeId])`. Categories are scoped: global (`collegeId: null`, managed by SUPER_ADMIN) or college-specific (managed by COLLEGE_ADMIN). College admins see both global and their own categories.
 
 ### Authentication & Authorization
 - Middleware checks `better-auth.session_token` (dev) or `__Secure-better-auth.session_token` (prod) cookie on all non-public routes
@@ -110,7 +112,7 @@ Key API endpoints:
 - `/api/students` — CRUD + `/bulk`, `/profile`, `/resolve`, `/validate`
 - `/api/attempts` — CRUD + `[attemptId]/answers`, `[attemptId]/run` (code execution), `[attemptId]/violations`
 - `/api/library/questions` — CRUD + `/bulk`, `/import` (import into test)
-- `/api/library/categories` — List all question categories
+- `/api/library/categories` — CRUD for managed categories + `[categoryId]` (PUT rename, DELETE)
 - `/api/users/[userId]` — DELETE (super admin only)
 - `/api/stats` — Aggregated dashboard stats
 

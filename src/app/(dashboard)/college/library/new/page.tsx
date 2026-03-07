@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -24,7 +25,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowLeft, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Globe, Loader2, Lock, Plus, Trash2 } from "lucide-react";
 
 interface Option {
   id: string;
@@ -50,10 +51,12 @@ function generateTestCaseId() {
   return `tc_${Date.now()}_${testCaseCounter}`;
 }
 
-export default function NewLibraryQuestionPage() {
+export default function CollegeNewLibraryQuestionPage() {
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const searchParams = useSearchParams();
+  const scopeParam = searchParams.get("scope") === "private" ? "private" : "global";
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [questionText, setQuestionText] = useState("");
   const [questionType, setQuestionType] = useState("SINGLE_SELECT");
   const [options, setOptions] = useState<Option[]>([
@@ -68,10 +71,9 @@ export default function NewLibraryQuestionPage() {
   const [explanation, setExplanation] = useState("");
   const [category, setCategory] = useState("");
   const [difficulty, setDifficulty] = useState("MEDIUM");
+  const [scope, setScope] = useState<"global" | "private">(scopeParam as "global" | "private");
   const [useCustomCategory, setUseCustomCategory] = useState(false);
-
   const [categories, setCategories] = useState<{ id: string; name: string; isGlobal: boolean }[]>([]);
-
   const [testCases, setTestCases] = useState<TestCaseInput[]>([
     { id: generateTestCaseId(), input: "", expectedOutput: "", isSample: true },
   ]);
@@ -90,10 +92,7 @@ export default function NewLibraryQuestionPage() {
   }
 
   function removeOption(id: string) {
-    if (options.length <= 2) {
-      toast.error("At least 2 options are required");
-      return;
-    }
+    if (options.length <= 2) { toast.error("At least 2 options are required"); return; }
     setOptions((prev) => prev.filter((o) => o.id !== id));
     setCorrectOptionIds((prev) => prev.filter((cid) => cid !== id));
   }
@@ -107,11 +106,8 @@ export default function NewLibraryQuestionPage() {
   }
 
   function handleMultiSelectChange(optionId: string, checked: boolean) {
-    if (checked) {
-      setCorrectOptionIds((prev) => [...prev, optionId]);
-    } else {
-      setCorrectOptionIds((prev) => prev.filter((id) => id !== optionId));
-    }
+    if (checked) setCorrectOptionIds((prev) => [...prev, optionId]);
+    else setCorrectOptionIds((prev) => prev.filter((id) => id !== optionId));
   }
 
   function handleQuestionTypeChange(value: string) {
@@ -120,38 +116,22 @@ export default function NewLibraryQuestionPage() {
   }
 
   function addTestCase() {
-    setTestCases((prev) => [
-      ...prev,
-      { id: generateTestCaseId(), input: "", expectedOutput: "", isSample: false },
-    ]);
+    setTestCases((prev) => [...prev, { id: generateTestCaseId(), input: "", expectedOutput: "", isSample: false }]);
   }
 
   function removeTestCase(id: string) {
-    if (testCases.length <= 1) {
-      toast.error("At least 1 test case is required");
-      return;
-    }
+    if (testCases.length <= 1) { toast.error("At least 1 test case is required"); return; }
     setTestCases((prev) => prev.filter((tc) => tc.id !== id));
   }
 
   function updateTestCase(id: string, field: keyof TestCaseInput, value: string | boolean) {
-    setTestCases((prev) =>
-      prev.map((tc) => (tc.id === id ? { ...tc, [field]: value } : tc))
-    );
+    setTestCases((prev) => prev.map((tc) => (tc.id === id ? { ...tc, [field]: value } : tc)));
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-
-    if (!questionText.trim()) {
-      toast.error("Question text is required");
-      return;
-    }
-
-    if (!category.trim()) {
-      toast.error("Category is required");
-      return;
-    }
+    if (!questionText.trim()) { toast.error("Question text is required"); return; }
+    if (!category.trim()) { toast.error("Category is required"); return; }
 
     setIsSubmitting(true);
 
@@ -164,47 +144,18 @@ export default function NewLibraryQuestionPage() {
         setIsSubmitting(false);
         return;
       }
-
       body = {
-        questionText,
-        questionType: "CODING",
-        testCases: validTestCases.map((tc, idx) => ({
-          input: tc.input,
-          expectedOutput: tc.expectedOutput,
-          isSample: tc.isSample,
-          order: idx,
-        })),
-        marks,
-        negativeMarks,
-        explanation: explanation || undefined,
-        category,
-        difficulty,
-        scope: "global",
+        questionText, questionType: "CODING",
+        testCases: validTestCases.map((tc, idx) => ({ input: tc.input, expectedOutput: tc.expectedOutput, isSample: tc.isSample, order: idx })),
+        marks, negativeMarks, explanation: explanation || undefined, category, difficulty, scope,
       };
     } else {
       const filledOptions = options.filter((o) => o.text.trim());
-      if (filledOptions.length < 2) {
-        toast.error("At least 2 options with text are required");
-        setIsSubmitting(false);
-        return;
-      }
-      if (correctOptionIds.length === 0) {
-        toast.error("Please select at least one correct option");
-        setIsSubmitting(false);
-        return;
-      }
-
+      if (filledOptions.length < 2) { toast.error("At least 2 options with text are required"); setIsSubmitting(false); return; }
+      if (correctOptionIds.length === 0) { toast.error("Please select at least one correct option"); setIsSubmitting(false); return; }
       body = {
-        questionText,
-        questionType,
-        options: filledOptions,
-        correctOptionIds,
-        marks,
-        negativeMarks,
-        explanation: explanation || undefined,
-        category,
-        difficulty,
-        scope: "global",
+        questionText, questionType, options: filledOptions, correctOptionIds,
+        marks, negativeMarks, explanation: explanation || undefined, category, difficulty, scope,
       };
     }
 
@@ -214,14 +165,12 @@ export default function NewLibraryQuestionPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.error || "Failed to create question");
       }
-
       toast.success("Question added to library");
-      router.push("/admin/library");
+      router.push(`/college/library?scope=${scope}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
@@ -233,14 +182,14 @@ export default function NewLibraryQuestionPage() {
     <div className="space-y-6">
       <div>
         <Button variant="ghost" size="sm" asChild className="mb-2">
-          <Link href="/admin/library">
+          <Link href={`/college/library?scope=${scope}`}>
             <ArrowLeft />
             Back to Library
           </Link>
         </Button>
         <h1 className="text-3xl font-bold tracking-tight text-balance">Add Library Question</h1>
         <p className="text-muted-foreground">
-          Create a new question for the shared library.
+          Create a new question for the {scope} library.
         </p>
       </div>
 
@@ -255,6 +204,36 @@ export default function NewLibraryQuestionPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Scope selector */}
+            <div className="space-y-2">
+              <Label>Library Scope <span className="text-destructive">*</span></Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={scope === "global" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setScope("global")}
+                >
+                  <Globe className="size-3.5 mr-1.5" />
+                  Global
+                </Button>
+                <Button
+                  type="button"
+                  variant={scope === "private" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setScope("private")}
+                >
+                  <Lock className="size-3.5 mr-1.5" />
+                  Private
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {scope === "global"
+                  ? "Global questions are visible to all college admins."
+                  : "Private questions are only visible to your college."}
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="questionText">
                 Question Text <span className="text-destructive">*</span>
@@ -292,12 +271,7 @@ export default function NewLibraryQuestionPage() {
                   </div>
                 ) : (
                   <div className="space-y-1.5">
-                    <Input
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      placeholder="e.g. Math, DSA, DBMS"
-                      required
-                    />
+                    <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Math, DSA, DBMS" required />
                     {categories.length > 0 && (
                       <button type="button" className="text-xs text-muted-foreground hover:underline" onClick={() => { setUseCustomCategory(false); setCategory(""); }}>
                         Select from existing categories
@@ -308,11 +282,9 @@ export default function NewLibraryQuestionPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Difficulty</Label>
+                <Label>Difficulty <span className="text-destructive">*</span></Label>
                 <Select value={difficulty} onValueChange={setDifficulty}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="EASY">Easy</SelectItem>
                     <SelectItem value="MEDIUM">Medium</SelectItem>
@@ -325,9 +297,7 @@ export default function NewLibraryQuestionPage() {
             <div className="space-y-2">
               <Label htmlFor="questionType">Question Type</Label>
               <Select value={questionType} onValueChange={handleQuestionTypeChange}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="SINGLE_SELECT">Single Select (Radio)</SelectItem>
                   <SelectItem value="MULTI_SELECT">Multi Select (Checkbox)</SelectItem>
@@ -340,37 +310,18 @@ export default function NewLibraryQuestionPage() {
             {!isCoding && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label>
-                    Options <span className="text-destructive">*</span>
-                  </Label>
+                  <Label>Options <span className="text-destructive">*</span></Label>
                   <Button type="button" variant="outline" size="sm" onClick={addOption}>
-                    <Plus className="size-4" />
-                    Add Option
+                    <Plus className="size-4" /> Add Option
                   </Button>
                 </div>
-
                 {questionType === "SINGLE_SELECT" ? (
-                  <RadioGroup
-                    value={correctOptionIds[0] || ""}
-                    onValueChange={handleSingleSelectChange}
-                    className="space-y-3"
-                  >
+                  <RadioGroup value={correctOptionIds[0] || ""} onValueChange={handleSingleSelectChange} className="space-y-3">
                     {options.map((option, index) => (
                       <div key={option.id} className="flex items-center gap-3">
                         <RadioGroupItem value={option.id} id={`radio-${option.id}`} />
-                        <Input
-                          className="flex-1"
-                          placeholder={`Option ${index + 1}`}
-                          value={option.text}
-                          onChange={(e) => updateOptionText(option.id, e.target.value)}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeOption(option.id)}
-                          className="text-destructive hover:text-destructive"
-                        >
+                        <Input className="flex-1" placeholder={`Option ${index + 1}`} value={option.text} onChange={(e) => updateOptionText(option.id, e.target.value)} />
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removeOption(option.id)} className="text-destructive hover:text-destructive">
                           <Trash2 className="size-4" />
                         </Button>
                       </div>
@@ -380,26 +331,9 @@ export default function NewLibraryQuestionPage() {
                   <div className="space-y-3">
                     {options.map((option, index) => (
                       <div key={option.id} className="flex items-center gap-3">
-                        <Checkbox
-                          id={`check-${option.id}`}
-                          checked={correctOptionIds.includes(option.id)}
-                          onCheckedChange={(checked) =>
-                            handleMultiSelectChange(option.id, checked as boolean)
-                          }
-                        />
-                        <Input
-                          className="flex-1"
-                          placeholder={`Option ${index + 1}`}
-                          value={option.text}
-                          onChange={(e) => updateOptionText(option.id, e.target.value)}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeOption(option.id)}
-                          className="text-destructive hover:text-destructive"
-                        >
+                        <Checkbox id={`check-${option.id}`} checked={correctOptionIds.includes(option.id)} onCheckedChange={(checked) => handleMultiSelectChange(option.id, checked as boolean)} />
+                        <Input className="flex-1" placeholder={`Option ${index + 1}`} value={option.text} onChange={(e) => updateOptionText(option.id, e.target.value)} />
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removeOption(option.id)} className="text-destructive hover:text-destructive">
                           <Trash2 className="size-4" />
                         </Button>
                       </div>
@@ -418,15 +352,11 @@ export default function NewLibraryQuestionPage() {
             {isCoding && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label>
-                    Test Cases <span className="text-destructive">*</span>
-                  </Label>
+                  <Label>Test Cases <span className="text-destructive">*</span></Label>
                   <Button type="button" variant="outline" size="sm" onClick={addTestCase}>
-                    <Plus className="size-4" />
-                    Add Test Case
+                    <Plus className="size-4" /> Add Test Case
                   </Button>
                 </div>
-
                 {testCases.map((tc, index) => (
                   <Card key={tc.id} className="border-dashed">
                     <CardContent className="pt-4 space-y-3">
@@ -434,52 +364,21 @@ export default function NewLibraryQuestionPage() {
                         <span className="text-sm font-medium">Test Case {index + 1}</span>
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-2">
-                            <Checkbox
-                              id={`sample-${tc.id}`}
-                              checked={tc.isSample}
-                              onCheckedChange={(checked) =>
-                                updateTestCase(tc.id, "isSample", checked as boolean)
-                              }
-                            />
-                            <Label htmlFor={`sample-${tc.id}`} className="text-xs text-muted-foreground">
-                              Sample (visible to students)
-                            </Label>
+                            <Checkbox id={`sample-${tc.id}`} checked={tc.isSample} onCheckedChange={(checked) => updateTestCase(tc.id, "isSample", checked as boolean)} />
+                            <Label htmlFor={`sample-${tc.id}`} className="text-xs text-muted-foreground">Sample (visible to students)</Label>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeTestCase(tc.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
+                          <Button type="button" variant="ghost" size="sm" onClick={() => removeTestCase(tc.id)} className="text-destructive hover:text-destructive">
                             <Trash2 className="size-4" />
                           </Button>
                         </div>
                       </div>
-
                       <div className="space-y-2">
                         <Label className="text-xs">Input</Label>
-                        <Textarea
-                          value={tc.input}
-                          onChange={(e) => updateTestCase(tc.id, "input", e.target.value)}
-                          placeholder="Enter input (can be empty)"
-                          rows={2}
-                          className="font-mono text-sm"
-                        />
+                        <Textarea value={tc.input} onChange={(e) => updateTestCase(tc.id, "input", e.target.value)} placeholder="Enter input (can be empty)" rows={2} className="font-mono text-sm" />
                       </div>
-
                       <div className="space-y-2">
-                        <Label className="text-xs">
-                          Expected Output <span className="text-destructive">*</span>
-                        </Label>
-                        <Textarea
-                          value={tc.expectedOutput}
-                          onChange={(e) => updateTestCase(tc.id, "expectedOutput", e.target.value)}
-                          placeholder="Enter expected output"
-                          rows={2}
-                          className="font-mono text-sm"
-                          required
-                        />
+                        <Label className="text-xs">Expected Output <span className="text-destructive">*</span></Label>
+                        <Textarea value={tc.expectedOutput} onChange={(e) => updateTestCase(tc.id, "expectedOutput", e.target.value)} placeholder="Enter expected output" rows={2} className="font-mono text-sm" required />
                       </div>
                     </CardContent>
                   </Card>
@@ -490,36 +389,17 @@ export default function NewLibraryQuestionPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="marks">Marks</Label>
-                <Input
-                  id="marks"
-                  type="number"
-                  min={1}
-                  value={marks}
-                  onChange={(e) => setMarks(parseInt(e.target.value) || 1)}
-                />
+                <Input id="marks" type="number" min={1} value={marks} onChange={(e) => setMarks(parseInt(e.target.value) || 1)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="negativeMarks">Negative Marks</Label>
-                <Input
-                  id="negativeMarks"
-                  type="number"
-                  min={0}
-                  step="0.25"
-                  value={negativeMarks}
-                  onChange={(e) => setNegativeMarks(parseFloat(e.target.value) || 0)}
-                />
+                <Input id="negativeMarks" type="number" min={0} step="0.25" value={negativeMarks} onChange={(e) => setNegativeMarks(parseFloat(e.target.value) || 0)} />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="explanation">Explanation (optional)</Label>
-              <Textarea
-                id="explanation"
-                value={explanation}
-                onChange={(e) => setExplanation(e.target.value)}
-                placeholder="Explain the correct answer"
-                rows={3}
-              />
+              <Textarea id="explanation" value={explanation} onChange={(e) => setExplanation(e.target.value)} placeholder="Explain the correct answer" rows={3} />
             </div>
 
             <div className="flex gap-3 pt-4">
@@ -528,7 +408,7 @@ export default function NewLibraryQuestionPage() {
                 Add Question
               </Button>
               <Button type="button" variant="outline" asChild>
-                <Link href="/admin/library">Cancel</Link>
+                <Link href={`/college/library?scope=${scope}`}>Cancel</Link>
               </Button>
             </div>
           </form>

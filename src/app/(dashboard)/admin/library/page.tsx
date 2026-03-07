@@ -49,7 +49,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Loader2, Plus, Trash2, Upload, Search, Pencil, Tag, Check, X } from "lucide-react";
+import { Loader2, Plus, Trash2, Upload, Search, Pencil, Tag, Check, X, Globe, Lock } from "lucide-react";
 
 interface LibraryQuestion {
   id: string;
@@ -58,7 +58,9 @@ interface LibraryQuestion {
   category: string;
   difficulty: string;
   marks: number;
+  collegeId: string | null;
   createdBy: { name: string };
+  college?: { name: string } | null;
 }
 
 interface PaginatedResponse {
@@ -102,6 +104,7 @@ export default function AdminLibraryPage() {
   const category = searchParams.get("category") ?? "";
   const difficulty = searchParams.get("difficulty") ?? "";
   const type = searchParams.get("type") ?? "";
+  const scope = searchParams.get("scope") ?? "global";
   const page = Number(searchParams.get("page") ?? "1");
 
   function setParam(key: string, value: string) {
@@ -111,7 +114,6 @@ export default function AdminLibraryPage() {
     } else {
       params.set(key, value);
     }
-    // Reset to page 1 whenever a filter changes
     if (key !== "page") params.delete("page");
     router.replace(`?${params.toString()}`);
   }
@@ -124,6 +126,7 @@ export default function AdminLibraryPage() {
       if (category) params.set("category", category);
       if (difficulty) params.set("difficulty", difficulty);
       if (type) params.set("type", type);
+      params.set("scope", scope);
       params.set("page", page.toString());
       params.set("limit", "20");
 
@@ -136,7 +139,7 @@ export default function AdminLibraryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, category, difficulty, type, page]);
+  }, [search, category, difficulty, type, scope, page]);
 
   useEffect(() => {
     fetchQuestions();
@@ -238,6 +241,8 @@ export default function AdminLibraryPage() {
       setDeletingId(null);
     }
   }
+
+  const isGlobalScope = scope === "global";
 
   return (
     <div className="space-y-6">
@@ -343,19 +348,49 @@ export default function AdminLibraryPage() {
               </div>
             </DialogContent>
           </Dialog>
-          <Button variant="outline" asChild>
-            <Link href="/admin/library/upload">
-              <Upload />
-              Upload CSV
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link href="/admin/library/new">
-              <Plus />
-              Add Question
-            </Link>
-          </Button>
+          {isGlobalScope && (
+            <>
+              <Button variant="outline" asChild>
+                <Link href="/admin/library/upload?scope=global">
+                  <Upload />
+                  Upload CSV
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link href="/admin/library/new?scope=global">
+                  <Plus />
+                  Add Question
+                </Link>
+              </Button>
+            </>
+          )}
         </div>
+      </div>
+
+      {/* Scope Tabs */}
+      <div className="flex gap-1 rounded-lg border border-border p-1 w-fit">
+        <button
+          onClick={() => setParam("scope", "global")}
+          className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            isGlobalScope
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+          }`}
+        >
+          <Globe className="size-3.5" />
+          Global
+        </button>
+        <button
+          onClick={() => setParam("scope", "private")}
+          className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            !isGlobalScope
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+          }`}
+        >
+          <Lock className="size-3.5" />
+          Private
+        </button>
       </div>
 
       {/* Filters */}
@@ -368,7 +403,7 @@ export default function AdminLibraryPage() {
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
               <Input
-                placeholder="Search questions…"
+                placeholder="Search questions..."
                 value={search}
                 onChange={(e) => setParam("search", e.target.value)}
                 className="pl-9"
@@ -418,7 +453,7 @@ export default function AdminLibraryPage() {
         <div className="flex items-center justify-center py-20">
           <div className="text-center space-y-3">
             <Loader2 className="size-6 animate-spin mx-auto text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Loading…</p>
+            <p className="text-sm text-muted-foreground">Loading...</p>
           </div>
         </div>
       ) : (
@@ -433,14 +468,17 @@ export default function AdminLibraryPage() {
                   <TableHead>Category</TableHead>
                   <TableHead>Difficulty</TableHead>
                   <TableHead className="text-center">Marks</TableHead>
+                  {!isGlobalScope && <TableHead>College</TableHead>}
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {!data || data.questions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                      No questions found. Add questions to the library.
+                    <TableCell colSpan={isGlobalScope ? 7 : 8} className="h-24 text-center text-muted-foreground">
+                      {isGlobalScope
+                        ? "No global questions found. Add questions to the library."
+                        : "No private questions found. Private questions are created by college admins."}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -451,7 +489,7 @@ export default function AdminLibraryPage() {
                       </TableCell>
                       <TableCell className="max-w-md truncate">
                         {q.questionText.length > 80
-                          ? q.questionText.substring(0, 80) + "…"
+                          ? q.questionText.substring(0, 80) + "..."
                           : q.questionText}
                       </TableCell>
                       <TableCell>
@@ -472,6 +510,11 @@ export default function AdminLibraryPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">{q.marks}</TableCell>
+                      {!isGlobalScope && (
+                        <TableCell className="text-muted-foreground text-sm">
+                          {q.college?.name ?? "—"}
+                        </TableCell>
+                      )}
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button variant="ghost" size="sm" asChild>

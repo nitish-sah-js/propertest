@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { headers as nextHeaders } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-guard";
 import { isStudentEligible } from "@/lib/test-eligibility";
@@ -95,9 +96,67 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
     });
 
     if (existingAttempt) {
-      // If in progress, return the existing attempt
+      // If in progress, bind to current session and return
       if (existingAttempt.status === "IN_PROGRESS") {
-        return NextResponse.json(existingAttempt);
+        // Detect multi-device attempt: session changed while test is in progress
+        const oldSessionId = existingAttempt.activeSessionId;
+        const newSessionId = session.session.id;
+
+        if (oldSessionId && oldSessionId !== newSessionId) {
+          // Atomic compare-and-swap: only the first request that changes the session sends a notification.
+          // updateMany returns count=0 if activeSessionId was already changed by a concurrent request.
+          const { count } = await prisma.testAttempt.updateMany({
+            where: {
+              id: existingAttempt.id,
+              activeSessionId: oldSessionId,
+            },
+            data: { activeSessionId: newSessionId, lastHeartbeat: new Date() },
+          });
+
+          if (count > 0) {
+            // We won the race — send exactly one notification
+            const studentInfo = await prisma.user.findUnique({
+              where: { id: user.id },
+              select: { name: true, email: true },
+            });
+
+            const hdrs = await nextHeaders();
+            const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() || "Unknown";
+            const userAgent = hdrs.get("user-agent") || "Unknown";
+
+            await prisma.notification.create({
+              data: {
+                collegeId: test.drive.collegeId,
+                type: "SESSION_CONFLICT",
+                title: "Multi-device test attempt detected",
+                message: `${studentInfo?.name ?? "A student"} (${studentInfo?.email ?? user.id}) opened "${test.title}" on a different device during the test.`,
+                metadata: {
+                  studentId: user.id,
+                  studentName: studentInfo?.name,
+                  studentEmail: studentInfo?.email,
+                  testId,
+                  testTitle: test.title,
+                  attemptId: existingAttempt.id,
+                  ip,
+                  userAgent,
+                },
+              },
+            });
+          }
+          // else: another request already changed the session — skip notification
+        } else {
+          // Same session or first time — just update heartbeat
+          await prisma.testAttempt.update({
+            where: { id: existingAttempt.id },
+            data: { activeSessionId: newSessionId, lastHeartbeat: new Date() },
+          });
+        }
+
+        // Re-fetch the updated attempt to return
+        const updated = await prisma.testAttempt.findUnique({
+          where: { id: existingAttempt.id },
+        });
+        return NextResponse.json(updated);
       }
       // If already submitted or timed out, cannot retake
       return NextResponse.json(
@@ -114,6 +173,9 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
           studentId: user.id,
           status: "IN_PROGRESS",
           totalMarks: test.totalMarks,
+          maxViolations: test.maxViolations,
+          activeSessionId: session.session.id,
+          lastHeartbeat: new Date(),
         },
       });
 

@@ -14,7 +14,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 interface RetakeButtonProps {
@@ -49,14 +48,13 @@ export function RetakeButton({ attemptId, studentName }: RetakeButtonProps) {
   }
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>
-        <Button variant="ghost" size="sm">
-          <RotateCcw className="mr-1 size-4" />
-          Allow Retake
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
+    <>
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+        <RotateCcw className="mr-1 size-4" />
+        Allow Retake
+      </Button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Allow retake?</AlertDialogTitle>
           <AlertDialogDescription>
@@ -80,7 +78,8 @@ export function RetakeButton({ attemptId, studentName }: RetakeButtonProps) {
             Allow Retake
           </AlertDialogAction>
         </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

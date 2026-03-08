@@ -16,6 +16,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MobileNav } from "./mobile-nav";
 import { ThemeToggle } from "./theme-toggle";
+import { NotificationBell } from "./notification-bell";
 import { LogOut, Settings, Zap } from "lucide-react";
 
 interface TopbarProps {
@@ -52,19 +53,21 @@ export function Topbar({ user }: TopbarProps) {
 
   const role = roleMeta[user.role] ?? { label: user.role, variant: "secondary" as const };
 
-  const settingsHref =
+  const dashboardHref =
     user.role === "SUPER_ADMIN"
-      ? "/admin/settings"
+      ? "/admin"
       : user.role === "COLLEGE_ADMIN"
-        ? "/college/settings"
-        : "/student/settings";
+        ? "/college"
+        : "/student";
+
+  const settingsHref = `${dashboardHref}/settings`;
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 flex h-14 items-stretch border-b border-border shadow-sm">
 
       {/* ── Left: logo zone — dark, matches sidebar ── */}
       <div className="hidden md:flex items-center w-64 shrink-0 px-5 bg-sidebar border-r border-sidebar-border">
-        <Link href="/" className="flex items-center gap-2.5">
+        <Link href={dashboardHref} className="flex items-center gap-2.5">
           <div className="flex size-7 items-center justify-center rounded-lg bg-sidebar-primary shadow-sm">
             <Zap className="size-4 text-sidebar-primary-foreground" aria-hidden="true" />
           </div>
@@ -83,6 +86,7 @@ export function Topbar({ user }: TopbarProps) {
 
         {/* Controls */}
         <div className="flex items-center gap-1.5">
+          {user.role === "COLLEGE_ADMIN" && <NotificationBell />}
           <ThemeToggle />
 
           <div className="h-5 w-px bg-border mx-1" />

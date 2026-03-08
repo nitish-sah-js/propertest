@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-guard";
+import { validateAttemptSession } from "@/lib/attempt-session";
 import { executeBatch } from "@/lib/judge0";
 import { CodingLanguage } from "@/generated/prisma/client";
 
@@ -64,6 +65,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         { status: 400 }
       );
     }
+
+    // Validate session — prevent multi-device access
+    const sessionError = await validateAttemptSession(attempt.id, session.session.id);
+    if (sessionError) return sessionError;
 
     // Fetch all questions for this test
     const questions = await prisma.question.findMany({

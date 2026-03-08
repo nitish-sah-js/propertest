@@ -8,6 +8,8 @@ const schema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   collegeCode: z.string().min(1),
+  departmentId: z.string().min(1, "Department is required"),
+  semester: z.number().int().min(1).max(8),
 });
 
 export async function POST(request: NextRequest) {
@@ -22,7 +24,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, email, password, collegeCode } = parsed.data;
+    const { name, email, password, collegeCode, departmentId, semester } = parsed.data;
 
     const college = await prisma.college.findUnique({
       where: { code: collegeCode },
@@ -38,6 +40,18 @@ export async function POST(request: NextRequest) {
     if (!college.isActive) {
       return NextResponse.json(
         { error: "This college is not active" },
+        { status: 400 }
+      );
+    }
+
+    // Verify department belongs to this college
+    const department = await prisma.department.findFirst({
+      where: { id: departmentId, collegeId: college.id },
+    });
+
+    if (!department) {
+      return NextResponse.json(
+        { error: "Invalid department" },
         { status: 400 }
       );
     }
@@ -66,6 +80,8 @@ export async function POST(request: NextRequest) {
       data: {
         role: "STUDENT",
         collegeId: college.id,
+        departmentId,
+        semester,
       },
     });
 

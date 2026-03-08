@@ -40,9 +40,10 @@ import {
   PlayCircle,
   CheckCircle2,
   AlertTriangle,
+  LogOut,
 } from "lucide-react";
 
-type StudentStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "TIMED_OUT";
+type StudentStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "TIMED_OUT" | "LEFT";
 
 interface MonitorStudent {
   id: string;
@@ -72,6 +73,7 @@ interface MonitorData {
     inProgress: number;
     submitted: number;
     timedOut: number;
+    left: number;
   };
   students: MonitorStudent[];
 }
@@ -84,6 +86,7 @@ const statusBadge: Record<
   IN_PROGRESS: { label: "In Progress", variant: "secondary" },
   SUBMITTED: { label: "Submitted", variant: "default" },
   TIMED_OUT: { label: "Timed Out", variant: "destructive" },
+  LEFT: { label: "Left", variant: "destructive" },
 };
 
 export default function TestMonitorPage() {
@@ -207,7 +210,7 @@ export default function TestMonitorPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">
@@ -235,6 +238,15 @@ export default function TestMonitorPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{summary.inProgress}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-destructive">Left</CardTitle>
+            <LogOut className="size-4 text-destructive" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-destructive">{summary.left}</div>
           </CardContent>
         </Card>
         <Card>
@@ -276,6 +288,7 @@ export default function TestMonitorPage() {
             <SelectItem value="ALL">All Statuses</SelectItem>
             <SelectItem value="NOT_STARTED">Absent</SelectItem>
             <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+            <SelectItem value="LEFT">Left</SelectItem>
             <SelectItem value="SUBMITTED">Submitted</SelectItem>
             <SelectItem value="TIMED_OUT">Timed Out</SelectItem>
           </SelectContent>

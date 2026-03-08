@@ -21,6 +21,11 @@ const updateTestSchema = z.object({
   allowedStudentIds: z.array(z.string()).nullable().optional(),
   resultVisibility: z.nativeEnum(ResultVisibility).optional(),
   showResults: z.boolean().optional(),
+  maxViolations: z.number().int().min(0).optional(),
+  enableTabSwitchDetection: z.boolean().optional(),
+  enableFullscreenDetection: z.boolean().optional(),
+  enableCopyPasteDetection: z.boolean().optional(),
+  enableRefreshDetection: z.boolean().optional(),
 });
 
 type RouteParams = { params: Promise<{ testId: string }> };

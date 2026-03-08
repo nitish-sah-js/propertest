@@ -555,7 +555,12 @@ export default function StudentsListPage() {
                       />
                     </TableCell>
                     <TableCell className="px-4 font-medium">
-                      {student.name}
+                      <Link
+                        href={`/college/students/${student.id}`}
+                        className="hover:underline text-primary"
+                      >
+                        {student.name}
+                      </Link>
                     </TableCell>
                     <TableCell className="px-4 text-muted-foreground">
                       {student.email}

@@ -51,7 +51,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Clock, Loader2, Plus, Trash2, BarChart3, Upload, Eye, X, Search, Users, BookOpen, FileUp, Pencil, Download, ChevronDown } from "lucide-react";
+import { ArrowLeft, Clock, Loader2, Plus, Trash2, BarChart3, Upload, Eye, X, Search, Users, BookOpen, FileUp, Pencil, Download, ChevronDown, ShieldAlert } from "lucide-react";
 import { parseCSV, parseEligibilityCSV, generateCSVTemplate } from "@/lib/csv-parser";
 import { fileToCSVText } from "@/lib/spreadsheet";
 
@@ -89,6 +89,11 @@ interface TestData {
   allowedStudentIds: string[] | null;
   resultVisibility: string;
   showResults: boolean;
+  maxViolations: number;
+  enableTabSwitchDetection: boolean;
+  enableFullscreenDetection: boolean;
+  enableCopyPasteDetection: boolean;
+  enableRefreshDetection: boolean;
   drive: {
     id: string;
     title: string;
@@ -153,6 +158,11 @@ export default function TestDetailPage() {
   const [resultVisibility, setResultVisibility] = useState("AFTER_SUBMISSION");
   const [showResults, setShowResults] = useState(false);
   const [isTogglingResults, setIsTogglingResults] = useState(false);
+  const [maxViolations, setMaxViolations] = useState(5);
+  const [enableTabSwitch, setEnableTabSwitch] = useState(true);
+  const [enableFullscreen, setEnableFullscreen] = useState(true);
+  const [enableCopyPaste, setEnableCopyPaste] = useState(true);
+  const [enableRefresh, setEnableRefresh] = useState(true);
 
   const computedEndTime = formatEndTime(startTime, durationMinutes);
 
@@ -199,6 +209,11 @@ export default function TestDetailPage() {
         setStartTime(testData.startTime ? toDatetimeLocal(testData.startTime) : "");
         setResultVisibility(testData.resultVisibility || "AFTER_SUBMISSION");
         setShowResults(testData.showResults ?? false);
+        setMaxViolations(testData.maxViolations ?? 5);
+        setEnableTabSwitch(testData.enableTabSwitchDetection ?? true);
+        setEnableFullscreen(testData.enableFullscreenDetection ?? true);
+        setEnableCopyPaste(testData.enableCopyPasteDetection ?? true);
+        setEnableRefresh(testData.enableRefreshDetection ?? true);
 
         // Initialize eligibility state
         setAllowedDepartmentIds(testData.allowedDepartmentIds ?? []);
@@ -208,9 +223,10 @@ export default function TestDetailPage() {
 
         // Fetch details for pre-selected students
         if (studentIds.length > 0) {
-          const studentsRes = await fetch(`/api/students`);
+          const studentsRes = await fetch(`/api/students?limit=1000`);
           if (studentsRes.ok) {
-            const allStudents: StudentSearchResult[] = await studentsRes.json();
+            const data = await studentsRes.json();
+            const allStudents: StudentSearchResult[] = data.students ?? [];
             setSelectedStudents(
               allStudents.filter((s) => studentIds.includes(s.id))
             );
@@ -261,6 +277,11 @@ export default function TestDetailPage() {
             : null,
           resultVisibility,
           showResults,
+          maxViolations,
+          enableTabSwitchDetection: enableTabSwitch,
+          enableFullscreenDetection: enableFullscreen,
+          enableCopyPasteDetection: enableCopyPaste,
+          enableRefreshDetection: enableRefresh,
           allowedDepartmentIds: allowedDepartmentIds.length > 0 ? allowedDepartmentIds : null,
           allowedSemesters: allowedSemesters.length > 0 ? allowedSemesters : null,
           allowedStudentIds: allowedStudentIds.length > 0 ? allowedStudentIds : null,
@@ -447,16 +468,17 @@ export default function TestDetailPage() {
       try {
         const params = new URLSearchParams();
         // Count students matching criteria
-        const res = await fetch(`/api/students`);
+        const res = await fetch(`/api/students?limit=1000`);
         if (!res.ok) return;
-        const allStudents: { id: string; department: { id: string } | null; semester: number | null }[] = await res.json();
+        const data = await res.json();
+        const allStudents: { id: string; department: { id: string } | null; semester: number | null }[] = data.students ?? [];
 
         const deptIds = allowedDepartmentIds;
         const sems = allowedSemesters;
         const stuIds = allowedStudentIds;
 
         if (deptIds.length === 0 && sems.length === 0 && stuIds.length === 0) {
-          setEligibleCount(allStudents.length);
+          setEligibleCount(data.total ?? allStudents.length);
           return;
         }
 
@@ -575,10 +597,12 @@ export default function TestDetailPage() {
                 <Label htmlFor="durationMinutes">Duration (minutes)</Label>
                 <Input
                   id="durationMinutes"
-                  type="number"
-                  min={1}
+                  inputMode="numeric"
                   value={durationMinutes}
-                  onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 60)}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, "");
+                    setDurationMinutes(v === "" ? 0 : parseInt(v));
+                  }}
                 />
               </div>
             </div>
@@ -597,6 +621,51 @@ export default function TestDetailPage() {
                 onCheckedChange={setShuffleQuestions}
               />
               <Label htmlFor="shuffleQuestions">Shuffle questions</Label>
+            </div>
+
+            {/* Proctoring Configuration */}
+            <div className="space-y-4 rounded-lg border p-4">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="size-4 text-muted-foreground" />
+                <Label className="text-sm font-semibold">Proctoring Settings</Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="maxViolations">Max Violations (auto-submit after)</Label>
+                <Input
+                  id="maxViolations"
+                  inputMode="numeric"
+                  value={maxViolations}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, "");
+                    setMaxViolations(v === "" ? 0 : parseInt(v));
+                  }}
+                  className="w-32"
+                />
+                {maxViolations === 0 && (
+                  <p className="text-xs text-muted-foreground">0 = unlimited violations (no auto-submit)</p>
+                )}
+              </div>
+
+              <div className="space-y-2.5">
+                <Label className="text-xs text-muted-foreground">Violation types to track</Label>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="ev-tab" checked={enableTabSwitch} onCheckedChange={(v) => setEnableTabSwitch(!!v)} />
+                  <Label htmlFor="ev-tab" className="text-sm font-normal">Tab switch detection</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="ev-fs" checked={enableFullscreen} onCheckedChange={(v) => setEnableFullscreen(!!v)} />
+                  <Label htmlFor="ev-fs" className="text-sm font-normal">Fullscreen exit detection</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="ev-cp" checked={enableCopyPaste} onCheckedChange={(v) => setEnableCopyPaste(!!v)} />
+                  <Label htmlFor="ev-cp" className="text-sm font-normal">Copy/paste detection</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="ev-rf" checked={enableRefresh} onCheckedChange={(v) => setEnableRefresh(!!v)} />
+                  <Label htmlFor="ev-rf" className="text-sm font-normal">Page refresh detection</Label>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">

@@ -20,6 +20,11 @@ const createTestSchema = z.object({
   allowedSemesters: z.array(z.number().int().min(1).max(8)).nullable().optional(),
   allowedStudentIds: z.array(z.string()).nullable().optional(),
   resultVisibility: z.nativeEnum(ResultVisibility).optional(),
+  maxViolations: z.number().int().min(0).optional(),
+  enableTabSwitchDetection: z.boolean().optional(),
+  enableFullscreenDetection: z.boolean().optional(),
+  enableCopyPasteDetection: z.boolean().optional(),
+  enableRefreshDetection: z.boolean().optional(),
 });
 
 // GET /api/tests — list tests (optionally filter by driveId query param)

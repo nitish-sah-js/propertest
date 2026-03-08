@@ -143,6 +143,7 @@ model College {
   departments      Department[]
   categories       Category[]
   libraryQuestions LibraryQuestion[]
+  notifications    Notification[]
 }
 
 model PlacementDrive {
@@ -180,6 +181,12 @@ model Test {
   resultVisibility ResultVisibility @default(AFTER_SUBMISSION)
   showResults      Boolean         @default(false)
   notificationSent Boolean         @default(false)
+  // Proctoring configuration
+  maxViolations              Int     @default(5)
+  enableTabSwitchDetection   Boolean @default(true)
+  enableFullscreenDetection  Boolean @default(true)
+  enableCopyPasteDetection   Boolean @default(true)
+  enableRefreshDetection     Boolean @default(true)
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
@@ -225,9 +232,12 @@ model TestAttempt {
   tabSwitchCount      Int           @default(0)
   fullscreenExitCount Int           @default(0)
   copyPasteAttempts   Int           @default(0)
+  refreshCount        Int           @default(0)
   totalViolations     Int           @default(0)
   maxViolations       Int           @default(5)
   autoSubmitted       Boolean       @default(false)
+  activeSessionId     String?
+  lastHeartbeat       DateTime?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
@@ -327,4 +337,17 @@ model LibraryTestCase {
   order             Int     @default(0)
 
   libraryQuestion LibraryQuestion @relation(fields: [libraryQuestionId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  collegeId String
+  type      String   // e.g. "SESSION_CONFLICT"
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  metadata  Json?    // extra data (studentId, testId, etc.)
+  createdAt DateTime @default(now())
+
+  college College @relation(fields: [collegeId], references: [id], onDelete: Cascade)
 }

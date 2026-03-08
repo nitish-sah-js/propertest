@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-guard";
+import { validateAttemptSession } from "@/lib/attempt-session";
 
 type RouteParams = { params: Promise<{ attemptId: string }> };
 
-const VIOLATION_TYPES = ["TAB_SWITCH", "FULLSCREEN_EXIT", "COPY_PASTE"] as const;
+const VIOLATION_TYPES = ["TAB_SWITCH", "FULLSCREEN_EXIT", "COPY_PASTE", "REFRESH"] as const;
 type ViolationType = (typeof VIOLATION_TYPES)[number];
 
 const FIELD_MAP: Record<ViolationType, string> = {
   TAB_SWITCH: "tabSwitchCount",
   FULLSCREEN_EXIT: "fullscreenExitCount",
   COPY_PASTE: "copyPasteAttempts",
+  REFRESH: "refreshCount",
 };
 
 // POST /api/attempts/[attemptId]/violations — log a proctoring violation
@@ -55,6 +57,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         { status: 400 }
       );
     }
+
+    // Validate session — prevent multi-device access
+    const sessionError = await validateAttemptSession(attemptId, session.session.id);
+    if (sessionError) return sessionError;
 
     const field = FIELD_MAP[type as ViolationType];
 

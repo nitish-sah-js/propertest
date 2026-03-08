@@ -16,7 +16,7 @@ export function ViolationBanner({
 }: ViolationBannerProps) {
   if (totalViolations === 0) return null;
 
-  const isHighRisk = totalViolations >= maxViolations - 1;
+  const isHighRisk = maxViolations > 0 && totalViolations >= maxViolations - 1;
 
   return (
     <div
@@ -29,8 +29,9 @@ export function ViolationBanner({
     >
       <AlertTriangle className="size-4 shrink-0" />
       <span>
-        Warning: {totalViolations}/{maxViolations} violations detected. Test
-        will auto-submit after {maxViolations} violations.
+        {maxViolations > 0
+          ? `Warning: ${totalViolations}/${maxViolations} violations detected. Test will auto-submit after ${maxViolations} violations.`
+          : `${totalViolations} violation${totalViolations === 1 ? "" : "s"} detected.`}
       </span>
       {lastWarning && (
         <span className="ml-auto text-xs opacity-80">{lastWarning}</span>

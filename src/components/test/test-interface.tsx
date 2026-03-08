@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SubmitDialog } from "@/components/test/submit-dialog";
 import { ViolationBanner } from "@/components/test/violation-banner";
@@ -20,11 +19,12 @@ import {
   CheckCircle,
   Loader2,
   AlertCircle,
-  Save,
   ShieldAlert,
   Code2,
   Moon,
   Sun,
+  Maximize,
+  MonitorX,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuestionText } from "@/components/ui/question-text";
@@ -71,10 +71,21 @@ interface AttemptDetail {
   testId: string;
   startedAt: string;
   status: string;
+  tabSwitchCount: number;
+  fullscreenExitCount: number;
+  copyPasteAttempts: number;
+  refreshCount: number;
+  totalViolations: number;
+  maxViolations: number;
   test: {
     title: string;
     durationMinutes: number;
     totalMarks: number;
+    maxViolations: number;
+    enableTabSwitchDetection: boolean;
+    enableFullscreenDetection: boolean;
+    enableCopyPasteDetection: boolean;
+    enableRefreshDetection: boolean;
   };
   answers: Array<{
     questionId: string;
@@ -119,6 +130,23 @@ export function TestInterface({ testId }: TestInterfaceProps) {
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [autoSubmittedByViolation, setAutoSubmittedByViolation] =
     useState(false);
+  const [sessionConflict, setSessionConflict] = useState(false);
+
+  // Initial violation counts restored from server
+  const [initialViolations, setInitialViolations] = useState<{
+    tabSwitchCount: number;
+    fullscreenExitCount: number;
+    copyPasteAttempts: number;
+    refreshCount: number;
+    totalViolations: number;
+  } | null>(null);
+  const [maxViolations, setMaxViolations] = useState(5);
+  const [proctoringConfig, setProctoringConfig] = useState<{
+    enableTabSwitchDetection: boolean;
+    enableFullscreenDetection: boolean;
+    enableCopyPasteDetection: boolean;
+    enableRefreshDetection: boolean;
+  } | null>(null);
 
   // Refs for debounced save
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -128,10 +156,12 @@ export function TestInterface({ testId }: TestInterfaceProps) {
   const handleViolationAutoSubmit = useCallback(() => {
     setAutoSubmittedByViolation(true);
   }, []);
-  const { violations, warningMessage } = useProctoring(
+  const { violations, warningMessage, isFullscreen, enterFullscreen } = useProctoring(
     attemptId,
-    5,
-    handleViolationAutoSubmit
+    maxViolations,
+    handleViolationAutoSubmit,
+    initialViolations,
+    proctoringConfig
   );
 
   // ----------------------------------------------------------
@@ -206,6 +236,31 @@ export function TestInterface({ testId }: TestInterfaceProps) {
             }
             setAnswers(restored);
           }
+
+          // Restore violation counts from server
+          setInitialViolations({
+            tabSwitchCount: detail.tabSwitchCount ?? 0,
+            fullscreenExitCount: detail.fullscreenExitCount ?? 0,
+            copyPasteAttempts: detail.copyPasteAttempts ?? 0,
+            refreshCount: detail.refreshCount ?? 0,
+            totalViolations: detail.totalViolations ?? 0,
+          });
+
+          // Restore proctoring config from test
+          setMaxViolations(detail.maxViolations ?? detail.test.maxViolations ?? 5);
+          setProctoringConfig({
+            enableTabSwitchDetection: detail.test.enableTabSwitchDetection ?? true,
+            enableFullscreenDetection: detail.test.enableFullscreenDetection ?? true,
+            enableCopyPasteDetection: detail.test.enableCopyPasteDetection ?? true,
+            enableRefreshDetection: detail.test.enableRefreshDetection ?? true,
+          });
+
+          // Auto-enter fullscreen after initialization
+          if (detail.test.enableFullscreenDetection !== false) {
+            document.documentElement.requestFullscreen?.().catch(() => {
+              // Browser may block without user gesture — overlay will prompt
+            });
+          }
         }
       } catch {
         if (!cancelled) {
@@ -253,6 +308,34 @@ export function TestInterface({ testId }: TestInterfaceProps) {
   }, [startedAt, durationMinutes, submitted]);
 
   // ----------------------------------------------------------
+  // Session heartbeat — detect if another device took over
+  // ----------------------------------------------------------
+
+  useEffect(() => {
+    if (!attemptId || submitted || sessionConflict) return;
+
+    const checkSession = async () => {
+      try {
+        const res = await fetch(`/api/attempts/${attemptId}/session-check`);
+        if (res.ok) {
+          const data = await res.json();
+          if (!data.active) {
+            setSessionConflict(true);
+          }
+        } else if (res.status === 401) {
+          // Session expired — logged in elsewhere
+          setSessionConflict(true);
+        }
+      } catch {
+        // Network error, skip this check
+      }
+    };
+
+    const interval = setInterval(checkSession, 10000);
+    return () => clearInterval(interval);
+  }, [attemptId, submitted, sessionConflict]);
+
+  // ----------------------------------------------------------
   // Auto-save (MCQ)
   // ----------------------------------------------------------
 
@@ -285,6 +368,13 @@ export function TestInterface({ testId }: TestInterfaceProps) {
             });
 
             if (!res.ok) {
+              if (res.status === 409) {
+                const data = await res.json();
+                if (data.error === "SESSION_CONFLICT") {
+                  setSessionConflict(true);
+                  return;
+                }
+              }
               console.error("Failed to save answer for question:", qId);
               setSaveStatus("error");
               return;
@@ -400,6 +490,11 @@ export function TestInterface({ testId }: TestInterfaceProps) {
 
         if (!res.ok) {
           const data = await res.json();
+          if (data.error === "SESSION_CONFLICT") {
+            setSessionConflict(true);
+            setSubmitting(false);
+            return;
+          }
           setError(data.error || "Failed to submit test.");
           setSubmitting(false);
           return;
@@ -450,6 +545,33 @@ export function TestInterface({ testId }: TestInterfaceProps) {
     const s = seconds % 60;
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
+
+  // ----------------------------------------------------------
+  // Session conflict state
+  // ----------------------------------------------------------
+
+  if (sessionConflict) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardContent className="py-12 text-center space-y-4">
+            <MonitorX className="mx-auto size-12 text-destructive" />
+            <h2 className="text-lg font-semibold">Session Active on Another Device</h2>
+            <p className="text-muted-foreground text-sm">
+              This test is currently active on another device or browser tab.
+              Only one active session is allowed at a time.
+            </p>
+            <p className="text-muted-foreground text-xs">
+              If you want to continue here, close the test on the other device and reload this page.
+            </p>
+            <Button onClick={() => window.location.reload()}>
+              Reload Page
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // ----------------------------------------------------------
   // Loading state
@@ -546,6 +668,22 @@ export function TestInterface({ testId }: TestInterfaceProps) {
 
   return (
     <div className="flex flex-col h-screen bg-muted/30">
+      {/* ── Fullscreen prompt overlay ── */}
+      {proctoringConfig?.enableFullscreenDetection && !isFullscreen && attemptId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4 rounded-lg bg-background p-8 shadow-lg text-center max-w-sm">
+            <Maximize className="size-10 text-primary" />
+            <h2 className="text-lg font-semibold">Fullscreen Required</h2>
+            <p className="text-sm text-muted-foreground">
+              This test requires fullscreen mode. Click the button below to enter fullscreen and continue.
+            </p>
+            <Button size="lg" onClick={enterFullscreen}>
+              Enter Fullscreen
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* ── Top Bar ── */}
       <header className="flex items-center justify-between border-b bg-background px-5 py-2.5 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
@@ -584,7 +722,7 @@ export function TestInterface({ testId }: TestInterfaceProps) {
           {violations.totalViolations > 0 && (
             <div className="flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 dark:border-red-800 dark:bg-red-950/50 dark:text-red-400">
               <ShieldAlert className="size-3.5" />
-              {violations.totalViolations}/5
+              {violations.totalViolations}{maxViolations > 0 ? `/${maxViolations}` : ""}
             </div>
           )}
 
@@ -623,7 +761,7 @@ export function TestInterface({ testId }: TestInterfaceProps) {
       {/* ── Violation Banner ── */}
       <ViolationBanner
         totalViolations={violations.totalViolations}
-        maxViolations={5}
+        maxViolations={maxViolations}
         lastWarning={warningMessage}
       />
 
@@ -631,7 +769,7 @@ export function TestInterface({ testId }: TestInterfaceProps) {
       <div className="flex flex-1 overflow-hidden">
         {/* ── Question Area ── */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1">
+          <div className="flex-1 overflow-y-auto">
             {currentQuestion && (
               <div className="max-w-2xl mx-auto px-6 py-8">
                 {/* Question meta row */}
@@ -680,8 +818,6 @@ export function TestInterface({ testId }: TestInterfaceProps) {
                         const selectedIds =
                           answers.get(currentQuestion.id) || [];
                         const isSelected = selectedIds.includes(option.id);
-                        const isSingle =
-                          currentQuestion.questionType === "SINGLE_SELECT";
 
                         return (
                           <button
@@ -749,34 +885,22 @@ export function TestInterface({ testId }: TestInterfaceProps) {
 
               </div>
             )}
-          </ScrollArea>
+          </div>
 
           {/* ── Bottom Navigation ── */}
           <div className="flex items-center justify-between border-t bg-background px-5 py-2.5 shrink-0">
             <div className="flex items-center gap-1.5">
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 disabled={currentIndex === 0}
-                onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-                className="h-8 px-2.5 text-xs"
+                onClick={() => {
+                  setCurrentIndex((i) => Math.max(0, i - 1));
+                }}
+                className="h-9 px-3 text-xs"
               >
-                <ChevronLeft className="size-3.5 mr-0.5" />
-                Prev
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={currentIndex === questions.length - 1}
-                onClick={() =>
-                  setCurrentIndex((i) =>
-                    Math.min(questions.length - 1, i + 1)
-                  )
-                }
-                className="h-8 px-2.5 text-xs"
-              >
-                Next
-                <ChevronRight className="size-3.5 ml-0.5" />
+                <ChevronLeft className="size-3.5 mr-1" />
+                Previous
               </Button>
             </div>
 
@@ -787,7 +911,7 @@ export function TestInterface({ testId }: TestInterfaceProps) {
                   size="sm"
                   onClick={() => toggleFlag(currentQuestion.id)}
                   className={cn(
-                    "h-8 px-3 text-xs",
+                    "h-9 px-3 text-xs",
                     flagged.has(currentQuestion.id) && "text-orange-600 dark:text-orange-400"
                   )}
                 >
@@ -803,16 +927,27 @@ export function TestInterface({ testId }: TestInterfaceProps) {
                 </Button>
               )}
 
-              <Separator orientation="vertical" className="h-5" />
-
-              <Button
-                size="sm"
-                onClick={() => setShowSubmitDialog(true)}
-                className="h-8 px-4 text-xs font-semibold bg-primary hover:bg-primary/90"
-              >
-                <Send className="size-3.5 mr-1.5" />
-                Submit
-              </Button>
+              {currentIndex < questions.length - 1 ? (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setCurrentIndex((i) => Math.min(questions.length - 1, i + 1));
+                  }}
+                  className="h-9 px-4 text-xs font-semibold"
+                >
+                  Next
+                  <ChevronRight className="size-3.5 ml-1" />
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => setShowSubmitDialog(true)}
+                  className="h-9 px-4 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <Send className="size-3.5 mr-1.5" />
+                  Submit Test
+                </Button>
+              )}
             </div>
           </div>
         </div>

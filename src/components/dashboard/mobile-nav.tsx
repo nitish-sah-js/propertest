@@ -56,6 +56,8 @@ export function MobileNav({ role }: { role: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const navItems = navMap[role] || [];
+  const dashboardHref =
+    role === "SUPER_ADMIN" ? "/admin" : role === "COLLEGE_ADMIN" ? "/college" : "/student";
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -67,7 +69,7 @@ export function MobileNav({ role }: { role: string }) {
       </SheetTrigger>
       <SheetContent side="left" className="w-64 p-0 bg-sidebar text-sidebar-foreground border-sidebar-border">
         <div className="flex items-center h-14 px-6 border-b border-sidebar-border">
-          <Link href="/" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
+          <Link href={dashboardHref} className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
             <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary">
               <Zap className="size-4 text-sidebar-primary-foreground" aria-hidden="true" />
             </div>

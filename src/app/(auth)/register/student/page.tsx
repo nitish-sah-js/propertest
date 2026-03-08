@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Card,
   CardContent,
@@ -16,6 +23,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  BookOpen,
   Building2,
   Eye,
   EyeOff,
@@ -34,9 +42,45 @@ export default function RegisterStudentPage() {
     email: "",
     password: "",
     collegeCode: "",
+    departmentId: "",
+    semester: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+  const [loadingDepts, setLoadingDepts] = useState(false);
+
+  const fetchDepartments = useCallback(async (code: string) => {
+    if (!code.trim()) {
+      setDepartments([]);
+      return;
+    }
+    setLoadingDepts(true);
+    try {
+      const res = await fetch(`/api/auth/departments?collegeCode=${encodeURIComponent(code.trim())}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDepartments(data.departments);
+      } else {
+        setDepartments([]);
+      }
+    } catch {
+      setDepartments([]);
+    } finally {
+      setLoadingDepts(false);
+    }
+  }, []);
+
+  // Fetch departments when college code changes (debounced)
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      fetchDepartments(formData.collegeCode);
+      // Reset department selection when college code changes
+      setFormData((prev) => ({ ...prev, departmentId: "" }));
+    }, 500);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.collegeCode, fetchDepartments]);
 
   function updateField(field: string, value: string) {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -50,7 +94,10 @@ export default function RegisterStudentPage() {
       const res = await fetch("/api/auth/register-student", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          semester: parseInt(formData.semester, 10),
+        }),
       });
 
       const data = await res.json();
@@ -168,9 +215,60 @@ export default function RegisterStudentPage() {
               />
             </div>
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="department">Department</Label>
+            <Select
+              value={formData.departmentId}
+              onValueChange={(value) => updateField("departmentId", value)}
+              required
+              disabled={departments.length === 0}
+            >
+              <SelectTrigger id="department" className="w-full">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="size-4 text-muted-foreground shrink-0" />
+                  <SelectValue placeholder={
+                    loadingDepts
+                      ? "Loading departments..."
+                      : departments.length === 0
+                        ? "Enter college code first"
+                        : "Select your department"
+                  } />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                {departments.map((dept) => (
+                  <SelectItem key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="semester">Semester</Label>
+            <Select
+              value={formData.semester}
+              onValueChange={(value) => updateField("semester", value)}
+              required
+            >
+              <SelectTrigger id="semester" className="w-full">
+                <div className="flex items-center gap-2">
+                  <GraduationCap className="size-4 text-muted-foreground shrink-0" />
+                  <SelectValue placeholder="Select your semester" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
+                  <SelectItem key={sem} value={String(sem)}>
+                    Semester {sem}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4 pt-2">
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full" disabled={loading || !formData.departmentId || !formData.semester}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />

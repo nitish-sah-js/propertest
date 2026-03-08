@@ -23,7 +23,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowLeft, Clock, Loader2 } from "lucide-react";
+import { ArrowLeft, Clock, Loader2, ShieldAlert } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 function formatEndTime(startLocal: string, durationMins: number): string | null {
   if (!startLocal || durationMins <= 0) return null;
@@ -43,6 +44,11 @@ export default function NewTestPage() {
   const [resultVisibility, setResultVisibility] = useState("AFTER_SUBMISSION");
   const [startTime, setStartTime] = useState("");
   const [durationMinutes, setDurationMinutes] = useState(60);
+  const [maxViolations, setMaxViolations] = useState(5);
+  const [enableTabSwitch, setEnableTabSwitch] = useState(true);
+  const [enableFullscreen, setEnableFullscreen] = useState(true);
+  const [enableCopyPaste, setEnableCopyPaste] = useState(true);
+  const [enableRefresh, setEnableRefresh] = useState(true);
 
   const computedEndTime = formatEndTime(startTime, durationMinutes);
 
@@ -66,6 +72,11 @@ export default function NewTestPage() {
       endTime: startTime
         ? new Date(new Date(startTime).getTime() + durationMinutes * 60000).toISOString()
         : undefined,
+      maxViolations,
+      enableTabSwitchDetection: enableTabSwitch,
+      enableFullscreenDetection: enableFullscreen,
+      enableCopyPasteDetection: enableCopyPaste,
+      enableRefreshDetection: enableRefresh,
     };
 
     try {
@@ -163,10 +174,12 @@ export default function NewTestPage() {
                 <Input
                   id="durationMinutes"
                   name="durationMinutes"
-                  type="number"
-                  min={1}
+                  inputMode="numeric"
                   value={durationMinutes}
-                  onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 60)}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, "");
+                    setDurationMinutes(v === "" ? 0 : parseInt(v));
+                  }}
                 />
               </div>
             </div>
@@ -196,6 +209,51 @@ export default function NewTestPage() {
                 onCheckedChange={setShuffleQuestions}
               />
               <Label htmlFor="shuffleQuestions">Shuffle questions</Label>
+            </div>
+
+            {/* Proctoring Configuration */}
+            <div className="space-y-4 rounded-lg border p-4">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="size-4 text-muted-foreground" />
+                <Label className="text-sm font-semibold">Proctoring Settings</Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="maxViolations">Max Violations (auto-submit after)</Label>
+                <Input
+                  id="maxViolations"
+                  inputMode="numeric"
+                  value={maxViolations}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, "");
+                    setMaxViolations(v === "" ? 0 : parseInt(v));
+                  }}
+                  className="w-32"
+                />
+                {maxViolations === 0 && (
+                  <p className="text-xs text-muted-foreground">0 = unlimited violations (no auto-submit)</p>
+                )}
+              </div>
+
+              <div className="space-y-2.5">
+                <Label className="text-xs text-muted-foreground">Violation types to track</Label>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="v-tab" checked={enableTabSwitch} onCheckedChange={(v) => setEnableTabSwitch(!!v)} />
+                  <Label htmlFor="v-tab" className="text-sm font-normal">Tab switch detection</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="v-fs" checked={enableFullscreen} onCheckedChange={(v) => setEnableFullscreen(!!v)} />
+                  <Label htmlFor="v-fs" className="text-sm font-normal">Fullscreen exit detection</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="v-cp" checked={enableCopyPaste} onCheckedChange={(v) => setEnableCopyPaste(!!v)} />
+                  <Label htmlFor="v-cp" className="text-sm font-normal">Copy/paste detection</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="v-rf" checked={enableRefresh} onCheckedChange={(v) => setEnableRefresh(!!v)} />
+                  <Label htmlFor="v-rf" className="text-sm font-normal">Page refresh detection</Label>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-guard";
+import { validateAttemptSession } from "@/lib/attempt-session";
 
 const saveAnswerSchema = z.object({
   questionId: z.string().min(1, "Question ID is required"),
@@ -57,6 +58,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         { status: 400 }
       );
     }
+
+    // Validate session — prevent multi-device access
+    const sessionError = await validateAttemptSession(attemptId, session.session.id);
+    if (sessionError) return sessionError;
 
     const body = await request.json();
     const parsed = saveAnswerSchema.safeParse(body);

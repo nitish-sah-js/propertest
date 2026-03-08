@@ -73,6 +73,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
           startedAt: true,
           submittedAt: true,
           totalViolations: true,
+          lastHeartbeat: true,
         },
       }),
     ]);
@@ -80,10 +81,15 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     // Build attempt lookup map
     const attemptMap = new Map(attempts.map((a) => [a.studentId, a]));
 
+    const now = Date.now();
+    // Consider a student as "left" if no heartbeat for 30 seconds
+    const HEARTBEAT_TIMEOUT_MS = 30_000;
+
     let notStarted = 0;
     let inProgress = 0;
     let submitted = 0;
     let timedOut = 0;
+    let left = 0;
 
     const studentList = students.map((s) => {
       const attempt = attemptMap.get(s.id);
@@ -98,6 +104,13 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       } else if (attempt.status === "TIMED_OUT") {
         status = "TIMED_OUT";
         timedOut++;
+      } else if (
+        attempt.status === "IN_PROGRESS" &&
+        attempt.lastHeartbeat &&
+        now - new Date(attempt.lastHeartbeat).getTime() > HEARTBEAT_TIMEOUT_MS
+      ) {
+        status = "LEFT";
+        left++;
       } else {
         status = "IN_PROGRESS";
         inProgress++;
@@ -132,6 +145,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         inProgress,
         submitted,
         timedOut,
+        left,
       },
       students: studentList,
     });

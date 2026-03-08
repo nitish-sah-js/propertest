@@ -22,6 +22,12 @@ export async function GET(request: NextRequest) {
     const graduatedParam = searchParams.get("graduated");
     const search = searchParams.get("search");
 
+    const pageParam = searchParams.get("page");
+    const limitParam = searchParams.get("limit");
+    const page = pageParam ? Math.max(1, parseInt(pageParam, 10)) : 1;
+    const limit = limitParam ? Math.max(1, Math.min(100, parseInt(limitParam, 10))) : 30;
+    const skip = (page - 1) * limit;
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: Record<string, any> = {
       collegeId: user.collegeId,
@@ -49,30 +55,35 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const students = await prisma.user.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        usn: true,
-        semester: true,
-        isGraduated: true,
-        department: {
-          select: { id: true, name: true, code: true },
-        },
-        createdAt: true,
-        testAttempts: {
-          where: {
-            status: { in: ["SUBMITTED", "TIMED_OUT"] },
+    const [students, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          usn: true,
+          semester: true,
+          isGraduated: true,
+          department: {
+            select: { id: true, name: true, code: true },
           },
-          select: {
-            percentage: true,
+          createdAt: true,
+          testAttempts: {
+            where: {
+              status: { in: ["SUBMITTED", "TIMED_OUT"] },
+            },
+            select: {
+              percentage: true,
+            },
           },
         },
-      },
-    });
+      }),
+      prisma.user.count({ where }),
+    ]);
 
     const result = students.map((student) => {
       const attempts = student.testAttempts;
@@ -100,7 +111,9 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json(result);
+    const totalPages = Math.ceil(total / limit);
+
+    return NextResponse.json({ students: result, total, page, limit, totalPages });
   } catch (error) {
     console.error("GET /api/students error:", error);
     return NextResponse.json(

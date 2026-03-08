@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr";
 import { toast } from "sonner";
 import {
   Upload,
@@ -96,9 +98,6 @@ export default function StudentsListPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [students, setStudents] = useState<Student[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteFilteredDialogOpen, setDeleteFilteredDialogOpen] = useState(false);
@@ -110,8 +109,7 @@ export default function StudentsListPage() {
   const semesterFilter = searchParams.get("sem") ?? "all";
   const graduatedFilter = searchParams.get("graduated") ?? "all";
   const usnSearch = searchParams.get("q") ?? "";
-
-  const [currentPage, setCurrentPage] = useState(1);
+  const currentPage = Number(searchParams.get("page") ?? "1");
 
   function setParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -120,9 +118,39 @@ export default function StudentsListPage() {
     } else {
       params.set(key, value);
     }
+    if (key !== "page") params.delete("page");
     router.replace(`?${params.toString()}`);
-    setCurrentPage(1);
   }
+
+  // Build SWR key for students
+  const studentsApiUrl = useCallback(() => {
+    const params = new URLSearchParams();
+    if (departmentFilter !== "all") params.set("departmentId", departmentFilter);
+    if (semesterFilter !== "all") params.set("semester", semesterFilter);
+    if (graduatedFilter !== "all") params.set("graduated", graduatedFilter);
+    if (usnSearch) params.set("search", usnSearch);
+    params.set("page", String(currentPage));
+    params.set("limit", String(PAGE_SIZE));
+    return `/api/students?${params.toString()}`;
+  }, [departmentFilter, semesterFilter, graduatedFilter, usnSearch, currentPage]);
+
+  const { data: studentsData, isLoading: loading, mutate: refreshStudents } = useSWR<{
+    students: Student[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>(studentsApiUrl(), fetcher, {
+    keepPreviousData: true,
+    onError: () => toast.error("Failed to load students"),
+  });
+
+  const students = studentsData?.students ?? [];
+  const totalStudents = studentsData?.total ?? 0;
+  const totalPages = studentsData?.totalPages ?? 1;
+
+  // Departments (cached separately)
+  const { data: departments = [] } = useSWR<Department[]>("/api/departments", fetcher);
 
   const [promoteDialogOpen, setPromoteDialogOpen] = useState(false);
   const [promoteFilteredDialogOpen, setPromoteFilteredDialogOpen] = useState(false);
@@ -140,42 +168,10 @@ export default function StudentsListPage() {
   });
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/departments")
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) setDepartments(data);
-      })
-      .catch(() => {});
-  }, []);
-
+  // Clear selection when filters change
   useEffect(() => {
     setSelected(new Set());
-    fetchStudents();
-  }, [departmentFilter, semesterFilter, graduatedFilter]);
-
-  async function fetchStudents() {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (departmentFilter !== "all")
-        params.set("departmentId", departmentFilter);
-      if (semesterFilter !== "all") params.set("semester", semesterFilter);
-      if (graduatedFilter !== "all") params.set("graduated", graduatedFilter);
-
-      const res = await fetch(`/api/students?${params.toString()}`);
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setStudents(data);
-      } else {
-        toast.error(data.error || "Failed to load students");
-      }
-    } catch {
-      toast.error("Failed to load students");
-    } finally {
-      setLoading(false);
-    }
-  }
+  }, [departmentFilter, semesterFilter, graduatedFilter, usnSearch, currentPage]);
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -187,10 +183,10 @@ export default function StudentsListPage() {
   }
 
   function toggleSelectAll() {
-    if (selected.size === filteredStudents.length) {
+    if (allSelected) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(filteredStudents.map((s) => s.id)));
+      setSelected(new Set(students.map((s) => s.id)));
     }
   }
 
@@ -208,7 +204,7 @@ export default function StudentsListPage() {
           `Deleted ${data.deleted} student${data.deleted !== 1 ? "s" : ""}`
         );
         setSelected(new Set());
-        fetchStudents();
+        refreshStudents();
       } else {
         toast.error(data.error || "Failed to delete students");
       }
@@ -237,7 +233,7 @@ export default function StudentsListPage() {
         if (data.graduated > 0) parts.push(`${data.graduated} graduated`);
         toast.success(parts.join(", ") || "No eligible students to promote");
         setSelected(new Set());
-        fetchStudents();
+        refreshStudents();
       } else {
         toast.error(data.error || "Failed to promote students");
       }
@@ -300,7 +296,7 @@ export default function StudentsListPage() {
       if (res.ok) {
         toast.success("Student updated successfully");
         setEditDialogOpen(false);
-        fetchStudents();
+        refreshStudents();
       } else {
         toast.error(data.error || "Failed to update student");
       }
@@ -311,22 +307,13 @@ export default function StudentsListPage() {
     }
   }
 
-  // Client-side USN search filter
-  const filteredStudents = usnSearch
-    ? students.filter((s) =>
-        s.usn?.toLowerCase().includes(usnSearch.toLowerCase())
-      )
-    : students;
-
-  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
   const startIdx = (safePage - 1) * PAGE_SIZE;
-  const paginatedStudents = filteredStudents.slice(startIdx, startIdx + PAGE_SIZE);
 
   const allSelected =
-    filteredStudents.length > 0 && selected.size === filteredStudents.length;
+    students.length > 0 && selected.size === students.length;
   const someSelected =
-    selected.size > 0 && selected.size < filteredStudents.length;
+    selected.size > 0 && selected.size < students.length;
   const hasActiveFilter =
     departmentFilter !== "all" ||
     semesterFilter !== "all" ||
@@ -437,7 +424,7 @@ export default function StudentsListPage() {
       </div>
 
       {/* Bulk action bar */}
-      {(selected.size > 0 || (hasActiveFilter && filteredStudents.length > 0)) && (
+      {(selected.size > 0 || (hasActiveFilter && students.length > 0)) && (
         <div
           className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/50 px-4 py-2"
           aria-live="polite"
@@ -461,7 +448,7 @@ export default function StudentsListPage() {
               </Button>
             </>
           )}
-          {hasActiveFilter && filteredStudents.length > 0 && (
+          {hasActiveFilter && students.length > 0 && (
             <>
               {selected.size > 0 && (
                 <span
@@ -475,14 +462,14 @@ export default function StudentsListPage() {
                 onClick={() => setDeleteFilteredDialogOpen(true)}
               >
                 <Trash2 className="size-4" aria-hidden="true" />
-                Delete Filtered ({filteredStudents.length})
+                Delete Filtered ({students.length})
               </Button>
               <Button
                 size="sm"
                 onClick={() => setPromoteFilteredDialogOpen(true)}
               >
                 <ArrowUpCircle className="size-4" aria-hidden="true" />
-                Promote Filtered ({filteredStudents.length})
+                Promote Filtered ({students.length})
               </Button>
             </>
           )}
@@ -527,7 +514,7 @@ export default function StudentsListPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredStudents.length === 0 ? (
+              {students.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={10} className="h-48 text-center">
                     <div className="flex flex-col items-center gap-3 py-6">
@@ -566,7 +553,7 @@ export default function StudentsListPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedStudents.map((student) => (
+                students.map((student) => (
                   <TableRow key={student.id}>
                     <TableCell className="px-4">
                       <Checkbox
@@ -661,15 +648,15 @@ export default function StudentsListPage() {
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
             Showing {startIdx + 1}&ndash;
-            {Math.min(startIdx + PAGE_SIZE, filteredStudents.length)} of{" "}
-            {filteredStudents.length} students
+            {Math.min(startIdx + PAGE_SIZE, totalStudents)} of{" "}
+            {totalStudents} students
           </p>
           <div className="flex items-center gap-1">
             <Button
               variant="outline"
               size="icon"
               className="size-8"
-              onClick={() => setCurrentPage(1)}
+              onClick={() => setParam("page", "1")}
               disabled={safePage === 1}
             >
               <ChevronsLeft className="size-4" />
@@ -678,7 +665,7 @@ export default function StudentsListPage() {
               variant="outline"
               size="icon"
               className="size-8"
-              onClick={() => setCurrentPage(safePage - 1)}
+              onClick={() => setParam("page", String(safePage - 1))}
               disabled={safePage === 1}
             >
               <ChevronLeft className="size-4" />
@@ -690,7 +677,7 @@ export default function StudentsListPage() {
               variant="outline"
               size="icon"
               className="size-8"
-              onClick={() => setCurrentPage(safePage + 1)}
+              onClick={() => setParam("page", String(safePage + 1))}
               disabled={safePage === totalPages}
             >
               <ChevronRight className="size-4" />
@@ -699,7 +686,7 @@ export default function StudentsListPage() {
               variant="outline"
               size="icon"
               className="size-8"
-              onClick={() => setCurrentPage(totalPages)}
+              onClick={() => setParam("page", String(totalPages))}
               disabled={safePage === totalPages}
             >
               <ChevronsRight className="size-4" />
@@ -784,8 +771,8 @@ export default function StudentsListPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete all filtered students?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete all {filteredStudents.length} student
-              {filteredStudents.length !== 1 ? "s" : ""} matching the current
+              This will permanently delete all {students.length} student
+              {students.length !== 1 ? "s" : ""} matching the current
               filters and all their test attempts. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -793,7 +780,7 @@ export default function StudentsListPage() {
             <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() =>
-                handleBulkDelete(filteredStudents.map((s) => s.id))
+                handleBulkDelete(students.map((s) => s.id))
               }
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -803,7 +790,7 @@ export default function StudentsListPage() {
               ) : (
                 <Trash2 className="size-4" aria-hidden="true" />
               )}
-              Delete All ({filteredStudents.length})
+              Delete All ({students.length})
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -847,8 +834,8 @@ export default function StudentsListPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Promote all filtered students?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will increment the semester for all {filteredStudents.length}{" "}
-              student{filteredStudents.length !== 1 ? "s" : ""} matching the
+              This will increment the semester for all {students.length}{" "}
+              student{students.length !== 1 ? "s" : ""} matching the
               current filters. Students in semester 8 will be marked as
               graduated. Students without a semester or already graduated will be
               skipped.
@@ -858,7 +845,7 @@ export default function StudentsListPage() {
             <AlertDialogCancel disabled={promoting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() =>
-                handleBulkPromote(filteredStudents.map((s) => s.id))
+                handleBulkPromote(students.map((s) => s.id))
               }
               disabled={promoting}
             >
@@ -867,7 +854,7 @@ export default function StudentsListPage() {
               ) : (
                 <ArrowUpCircle className="size-4" aria-hidden="true" />
               )}
-              Promote All ({filteredStudents.length})
+              Promote All ({students.length})
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

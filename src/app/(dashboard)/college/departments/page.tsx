@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,8 +36,11 @@ interface Department {
 }
 
 export default function DepartmentsPage() {
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: departments = [], isLoading: loading, mutate: refreshDepartments } = useSWR<Department[]>(
+    "/api/departments",
+    fetcher,
+    { onError: () => toast.error("Failed to load departments") }
+  );
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -44,23 +49,6 @@ export default function DepartmentsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
   const [formCode, setFormCode] = useState("");
-
-  async function fetchDepartments() {
-    try {
-      const res = await fetch("/api/departments");
-      if (!res.ok) throw new Error("Failed to fetch");
-      const data = await res.json();
-      setDepartments(data);
-    } catch {
-      toast.error("Failed to load departments");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchDepartments();
-  }, []);
 
   function resetForm() {
     setShowForm(false);
@@ -111,7 +99,7 @@ export default function DepartmentsPage() {
       }
 
       resetForm();
-      fetchDepartments();
+      refreshDepartments();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
@@ -125,7 +113,7 @@ export default function DepartmentsPage() {
       const res = await fetch(`/api/departments/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete");
       toast.success("Department deleted");
-      fetchDepartments();
+      refreshDepartments();
     } catch {
       toast.error("Failed to delete department");
     } finally {

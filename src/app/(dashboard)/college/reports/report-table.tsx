@@ -168,10 +168,12 @@ export function ReportTable({ reports }: { reports: TestReportData[] }) {
             className="rounded-lg border border-border shadow-sm overflow-hidden"
           >
             {/* Summary row */}
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => toggle(report.id)}
-              className="w-full text-left px-4 py-3 flex items-center gap-4 hover:bg-accent/40 transition-colors"
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(report.id); } }}
+              className="w-full text-left px-4 py-3 flex items-center gap-4 hover:bg-accent/40 transition-colors cursor-pointer"
             >
               {isExpanded ? (
                 <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
@@ -239,7 +241,7 @@ export function ReportTable({ reports }: { reports: TestReportData[] }) {
                 />
                 <EmailButton testId={report.id} />
               </div>
-            </button>
+            </div>
 
             {/* Mobile stats (visible on small screens) */}
             {isExpanded && (

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-guard";
 import { isStudentEligible } from "@/lib/test-eligibility";
 import { redirect } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import Link from "next/link";
 import {
   Card,
@@ -34,43 +35,54 @@ export default async function StudentDashboardPage() {
     redirect("/login");
   }
 
-  const [allUpcomingTests, completedAttempts, allAttempts, studentData] =
-    await Promise.all([
-      prisma.test.findMany({
-        where: {
-          status: "PUBLISHED",
-          drive: { collegeId: user.collegeId },
-          attempts: {
-            none: { studentId: user.id },
-          },
-        },
-        include: {
-          drive: {
-            select: { title: true, companyName: true },
-          },
-          _count: { select: { questions: true } },
-        },
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.testAttempt.count({
-        where: {
-          studentId: user.id,
-          status: { in: ["SUBMITTED", "TIMED_OUT"] },
-        },
-      }),
-      prisma.testAttempt.findMany({
-        where: {
-          studentId: user.id,
-          status: { in: ["SUBMITTED", "TIMED_OUT"] },
-          percentage: { not: null },
-        },
-        select: { percentage: true },
-      }),
-      prisma.user.findUnique({
-        where: { id: user.id },
-        select: { id: true, departmentId: true, semester: true },
-      }),
-    ]);
+  const getStudentDashboardData = unstable_cache(
+    async (userId: string, collegeId: string) => {
+      const [allUpcomingTests, completedAttempts, allAttempts, studentData] =
+        await Promise.all([
+          prisma.test.findMany({
+            where: {
+              status: "PUBLISHED",
+              drive: { collegeId },
+              attempts: {
+                none: { studentId: userId },
+              },
+            },
+            include: {
+              drive: {
+                select: { title: true, companyName: true },
+              },
+              _count: { select: { questions: true } },
+            },
+            orderBy: { createdAt: "desc" },
+          }),
+          prisma.testAttempt.count({
+            where: {
+              studentId: userId,
+              status: { in: ["SUBMITTED", "TIMED_OUT"] },
+            },
+          }),
+          prisma.testAttempt.findMany({
+            where: {
+              studentId: userId,
+              status: { in: ["SUBMITTED", "TIMED_OUT"] },
+              percentage: { not: null },
+            },
+            select: { percentage: true },
+          }),
+          prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true, departmentId: true, semester: true },
+          }),
+        ]);
+
+      return { allUpcomingTests, completedAttempts, allAttempts, studentData };
+    },
+    ["student-dashboard", user.id],
+    { revalidate: 60 }
+  );
+
+  const { allUpcomingTests, completedAttempts, allAttempts, studentData } =
+    await getStudentDashboardData(user.id, user.collegeId);
 
   // Filter tests by eligibility
   const eligibleTests = studentData

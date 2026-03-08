@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,9 +94,6 @@ export default function CollegeLibraryPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [data, setData] = useState<PaginatedResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -132,42 +131,32 @@ export default function CollegeLibraryPage() {
     router.replace(`?${params.toString()}`);
   }
 
-  const fetchQuestions = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (search) params.set("search", search);
-      if (category) params.set("category", category);
-      if (difficulty) params.set("difficulty", difficulty);
-      if (type) params.set("type", type);
-      params.set("scope", scope);
-      params.set("page", page.toString());
-      params.set("limit", "20");
-
-      const res = await fetch(`/api/library/questions?${params}`);
-      if (!res.ok) throw new Error("Failed to fetch questions");
-      setData(await res.json());
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load questions");
-    } finally {
-      setIsLoading(false);
-    }
+  // Build SWR key for questions
+  const questionsApiUrl = useCallback(() => {
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (category) params.set("category", category);
+    if (difficulty) params.set("difficulty", difficulty);
+    if (type) params.set("type", type);
+    params.set("scope", scope);
+    params.set("page", page.toString());
+    params.set("limit", "20");
+    return `/api/library/questions?${params}`;
   }, [search, category, difficulty, type, scope, page]);
 
-  useEffect(() => {
-    fetchQuestions();
-  }, [fetchQuestions]);
+  const { data, isLoading, mutate: refreshQuestions } = useSWR<PaginatedResponse>(
+    questionsApiUrl(),
+    fetcher,
+    {
+      keepPreviousData: true,
+      onError: () => toast.error("Failed to load questions"),
+    }
+  );
 
-  const fetchCategories = useCallback(() => {
-    fetch("/api/library/categories")
-      .then((res) => res.ok ? res.json() : Promise.reject())
-      .then((cats: CategoryItem[]) => setCategories(Array.isArray(cats) ? cats : []))
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
+  const { data: categories = [], mutate: refreshCategories } = useSWR<CategoryItem[]>(
+    "/api/library/categories",
+    fetcher
+  );
 
   async function handleAddCategory() {
     if (!newCategoryName.trim()) return;
@@ -184,7 +173,7 @@ export default function CollegeLibraryPage() {
       }
       toast.success("Category added");
       setNewCategoryName("");
-      fetchCategories();
+      refreshCategories();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
@@ -201,7 +190,7 @@ export default function CollegeLibraryPage() {
         throw new Error(err.error || "Failed to delete category");
       }
       toast.success("Category deleted");
-      fetchCategories();
+      refreshCategories();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
@@ -229,7 +218,7 @@ export default function CollegeLibraryPage() {
       }
       toast.success("Category updated");
       setEditingCategoryId(null);
-      fetchCategories();
+      refreshCategories();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
@@ -272,7 +261,7 @@ export default function CollegeLibraryPage() {
       const res = await fetch(`/api/library/questions/${questionId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete question");
       toast.success("Question deleted");
-      fetchQuestions();
+      refreshQuestions();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
@@ -568,7 +557,7 @@ export default function CollegeLibraryPage() {
                   <TableHead className="w-12">
                     <Checkbox
                       checked={
-                        data !== null &&
+                        !!data &&
                         data.questions.length > 0 &&
                         data.questions.every((q) => selectedIds.has(q.id))
                       }

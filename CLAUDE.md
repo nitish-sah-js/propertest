@@ -61,6 +61,9 @@ Judge0 config is in `judge0.conf` (referenced by `docker-compose.yml`).
 - `src/lib/csv-parser.ts` — CSV parsing for bulk MCQ question import; also exports `parseEligibilityCSV()` for test eligibility CSVs (name, usn, email, department columns)
 - `src/lib/student-csv-parser.ts` — CSV parsing for bulk student import with USN-based department extraction
 - `src/lib/library-csv-parser.ts` — CSV parsing for question library bulk upload (adds `category` and `difficulty` columns)
+- `src/lib/email.ts` — Nodemailer-based email sending via SMTP (used for test notifications and report emails)
+- `src/lib/report-csv.ts` — `generateTestReportCsv()` builds CSV reports with per-student scores, violations, and summary stats
+- `src/lib/test-notifications.ts` — `sendTestNotifications()` finds published tests starting within 15 minutes and emails eligible students. Called by Vercel cron every 5 minutes (`vercel.json`).
 - `src/middleware.ts` — Route protection; checks `better-auth.session_token` cookie, redirects unauthenticated users to `/login`
 - `src/lib/spreadsheet.ts` — Converts Excel (.xlsx/.xls) and CSV files to CSV text strings for the CSV parsers
 - `src/hooks/use-proctoring.ts` — Client-side proctoring hook tracking tab switches, fullscreen exits, copy/paste. Auto-submits when `maxViolations` threshold is reached. Allows copy/paste within `.monaco-editor`.
@@ -113,6 +116,9 @@ Key API endpoints:
 - `/api/attempts` — CRUD + `[attemptId]/answers`, `[attemptId]/run` (code execution), `[attemptId]/violations`
 - `/api/library/questions` — CRUD + `/bulk`, `/import` (import into test)
 - `/api/library/categories` — CRUD for managed categories + `[categoryId]` (PUT rename, DELETE)
+- `/api/reports/download` — Download test report as CSV
+- `/api/reports/email` — Email test report to college admin
+- `/api/cron/test-notifications` — Vercel cron endpoint (every 5 min) sends email reminders for tests starting within 15 minutes
 - `/api/users/[userId]` — DELETE (super admin only)
 - `/api/stats` — Aggregated dashboard stats
 
@@ -130,7 +136,7 @@ Key API endpoints:
 - Root layout uses `ThemeProvider` (next-themes) with `defaultTheme="light"`
 
 ### Environment Variables
-Required in `.env`: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, `JUDGE0_API_URL` (default `http://localhost:2358` for local Docker). Optional: `JUDGE0_API_KEY` (only for RapidAPI-hosted Judge0), `DIRECT_URL` (direct DB connection for migrations).
+Required in `.env`: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, `JUDGE0_API_URL` (default `http://localhost:2358` for local Docker). Optional: `JUDGE0_API_KEY` (only for RapidAPI-hosted Judge0), `DIRECT_URL` (direct DB connection for migrations). SMTP (for email notifications/reports): `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE`, `SMTP_FROM`.
 
 ### Seed Data
 `npm run db:seed` creates test accounts for development:

@@ -16,7 +16,10 @@ const bulkQuestionSchema = z.object({
   correctOptionIds: z.array(z.string()).min(1),
   marks: z.number().int().positive(),
   negativeMarks: z.number().min(0),
-  explanation: z.string().optional(),
+  explanation: z.string().optional().nullable(),
+  codeBlock: z.string().optional().nullable(),
+  codeLanguage: z.string().optional().nullable(),
+  imageUrls: z.array(z.string()).optional().nullable(),
 });
 
 const bulkRequestSchema = z.object({
@@ -100,6 +103,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             negativeMarks: q.negativeMarks,
             explanation: q.explanation,
             order: startOrder + idx,
+            codeBlock: q.codeBlock ?? null,
+            codeLanguage: q.codeLanguage ?? null,
+            imageUrls: q.imageUrls ?? undefined,
           },
           select: { id: true },
         });

@@ -81,6 +81,9 @@ export async function POST(request: NextRequest) {
             negativeMarks: lq.negativeMarks,
             explanation: lq.explanation,
             order: startOrder + i,
+            codeBlock: lq.codeBlock,
+            codeLanguage: lq.codeLanguage,
+            imageUrls: lq.imageUrls ?? undefined,
           },
         });
 

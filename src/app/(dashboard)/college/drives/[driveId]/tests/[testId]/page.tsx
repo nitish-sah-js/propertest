@@ -52,7 +52,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ArrowLeft, Clock, Loader2, Plus, Trash2, BarChart3, Upload, Eye, X, Search, Users, BookOpen, FileUp, Pencil, Download, ChevronDown } from "lucide-react";
-import { parseEligibilityCSV, generateCSVTemplate } from "@/lib/csv-parser";
+import { parseCSV, parseEligibilityCSV, generateCSVTemplate } from "@/lib/csv-parser";
 import { fileToCSVText } from "@/lib/spreadsheet";
 
 function toDatetimeLocal(iso: string): string {
@@ -114,6 +114,10 @@ interface StudentSearchResult {
 interface QuestionData {
   id: string;
   questionText: string;
+  codeBlock?: string | null;
+  codeLanguage?: string | null;
+  imageUrl?: string | null;
+  imageUrls?: string[] | null;
   questionType: string;
   marks: number;
   order: number;
@@ -1040,9 +1044,7 @@ export default function TestDetailPage() {
                   onClick={async () => {
                     const { utils, writeFile } = await import("xlsx");
                     const csv = generateCSVTemplate();
-                    const rows = csv.trim().split("\n").map((line) =>
-                      line.split(",").map((cell) => cell.replace(/^"|"$/g, "").replace(/""/g, '"'))
-                    );
+                    const rows = parseCSV(csv);
                     const ws = utils.aoa_to_sheet(rows);
                     const wb = utils.book_new();
                     utils.book_append_sheet(wb, ws, "Questions");

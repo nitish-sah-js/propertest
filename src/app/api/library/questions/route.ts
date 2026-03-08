@@ -23,10 +23,13 @@ const mcqSchema = z.object({
   correctOptionIds: z.array(z.string()).min(1, "At least 1 correct option is required"),
   marks: z.number().int().positive().default(1),
   negativeMarks: z.number().min(0).default(0),
-  explanation: z.string().optional(),
+  explanation: z.string().optional().nullable(),
   category: z.string().min(1, "Category is required"),
   difficulty: z.nativeEnum(Difficulty).default("MEDIUM"),
   scope: z.enum(["global", "private"]).default("global"),
+  codeBlock: z.string().optional().nullable(),
+  codeLanguage: z.string().optional().nullable(),
+  imageUrls: z.array(z.string()).optional().nullable(),
 });
 
 const codingSchema = z.object({
@@ -35,10 +38,13 @@ const codingSchema = z.object({
   testCases: z.array(testCaseSchema).min(1, "At least 1 test case is required"),
   marks: z.number().int().positive().default(1),
   negativeMarks: z.number().min(0).default(0),
-  explanation: z.string().optional(),
+  explanation: z.string().optional().nullable(),
   category: z.string().min(1, "Category is required"),
   difficulty: z.nativeEnum(Difficulty).default("MEDIUM"),
   scope: z.enum(["global", "private"]).default("global"),
+  codeBlock: z.string().optional().nullable(),
+  codeLanguage: z.string().optional().nullable(),
+  imageUrls: z.array(z.string()).optional().nullable(),
 });
 
 const createSchema = z.discriminatedUnion("questionType", [
@@ -190,6 +196,9 @@ export async function POST(request: NextRequest) {
           difficulty: data.difficulty,
           collegeId,
           createdById: user.id,
+          codeBlock: data.codeBlock ?? null,
+          codeLanguage: data.codeLanguage ?? null,
+          imageUrls: data.imageUrls ?? undefined,
         },
         include: { testCases: true },
       });

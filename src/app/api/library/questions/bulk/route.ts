@@ -16,9 +16,12 @@ const bulkQuestionSchema = z.object({
   correctOptionIds: z.array(z.string()).min(1, "At least 1 correct option is required"),
   marks: z.number().int().positive(),
   negativeMarks: z.number().min(0),
-  explanation: z.string().optional(),
+  explanation: z.string().optional().nullable(),
   category: z.string().min(1, "Category is required"),
   difficulty: z.nativeEnum(Difficulty).default("MEDIUM"),
+  codeBlock: z.string().optional().nullable(),
+  codeLanguage: z.string().optional().nullable(),
+  imageUrls: z.array(z.string()).optional().nullable(),
 });
 
 const bulkRequestSchema = z.object({
@@ -79,6 +82,9 @@ export async function POST(request: NextRequest) {
           difficulty: q.difficulty,
           collegeId,
           createdById: user.id,
+          codeBlock: q.codeBlock ?? null,
+          codeLanguage: q.codeLanguage ?? null,
+          imageUrls: q.imageUrls ?? undefined,
         })),
       });
 

@@ -19,6 +19,7 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { QuestionText } from "@/components/ui/question-text";
+import { QuestionContent } from "@/components/ui/question-content";
 
 function formatDuration(seconds: number | null): string {
   if (seconds === null || seconds === undefined) return "N/A";
@@ -269,7 +270,13 @@ export default async function ResultDetailPage({
                     <div className="min-w-0">
                       <div className="font-medium text-sm leading-relaxed">
                         <span className="text-muted-foreground mr-1.5">Q{index + 1}.</span>
-                        <QuestionText className="inline">{question.questionText}</QuestionText>
+                        <QuestionContent
+                          questionText={question.questionText}
+                          codeBlock={question.codeBlock}
+                          codeLanguage={question.codeLanguage}
+                          imageUrl={question.imageUrl}
+                          imageUrls={question.imageUrls as string[] | null}
+                        />
                       </div>
                       <div className="flex items-center gap-2 mt-1.5">
                         <span className="text-[11px] text-muted-foreground">

@@ -192,7 +192,10 @@ model Question {
   id               String       @id @default(cuid())
   testId           String
   questionText     String
+  codeBlock        String?
+  codeLanguage     String?
   imageUrl         String?
+  imageUrls        Json?        // Array of image URL strings
   questionType     QuestionType @default(SINGLE_SELECT)
   options          Json         // Array of {id, text}
   correctOptionIds Json         // Array of string IDs
@@ -294,6 +297,9 @@ model Category {
 model LibraryQuestion {
   id               String       @id @default(cuid())
   questionText     String
+  codeBlock        String?
+  codeLanguage     String?
+  imageUrls        Json?        // Array of image URL strings
   questionType     QuestionType @default(SINGLE_SELECT)
   options          Json         // Array of {id, text}
   correctOptionIds Json         // Array of string IDs

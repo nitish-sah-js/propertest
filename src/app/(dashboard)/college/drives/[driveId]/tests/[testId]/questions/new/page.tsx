@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -24,8 +24,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowLeft, ImagePlus, Loader2, Plus, Trash2, Code2, Eye, EyeOff, X } from "lucide-react";
-import { QuestionText } from "@/components/ui/question-text";
+import { ArrowLeft, Loader2, Plus, Trash2, X } from "lucide-react";
+import { QuestionContent } from "@/components/ui/question-content";
 
 interface Option {
   id: string;
@@ -42,11 +42,11 @@ export default function NewQuestionPage() {
   const params = useParams<{ driveId: string; testId: string }>();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [questionText, setQuestionText] = useState("");
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [codeBlock, setCodeBlock] = useState("");
+  const [codeLanguage, setCodeLanguage] = useState("");
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [questionType, setQuestionType] = useState("SINGLE_SELECT");
   const [options, setOptions] = useState<Option[]>([
     { id: generateOptionId(), text: "" },
@@ -119,13 +119,15 @@ export default function NewQuestionPage() {
 
       const data = {
         questionText,
-        imageUrl: imageUrl || undefined,
+        codeBlock: codeBlock.trim() || null,
+        codeLanguage: codeLanguage || null,
+        imageUrls: imageUrls.length > 0 ? imageUrls : null,
         questionType,
         options: filledOptions,
         correctOptionIds,
         marks,
         negativeMarks,
-        explanation: explanation || undefined,
+        explanation: explanation || null,
       };
 
       try {
@@ -180,117 +182,109 @@ export default function NewQuestionPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Block 1: Question Text (Header) */}
             <div className="space-y-2">
               <Label htmlFor="questionText">
                 Question Text <span className="text-destructive">*</span>
               </Label>
-              <div className="flex items-center gap-1 mb-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-xs gap-1"
-                  onClick={() => {
-                    const ta = textareaRef.current;
-                    if (!ta) return;
-                    const start = ta.selectionStart;
-                    const end = ta.selectionEnd;
-                    const selected = questionText.slice(start, end);
-                    const codeBlock = selected
-                      ? "```\n" + selected + "\n```"
-                      : "```\n// paste code here\n```";
-                    const newText =
-                      questionText.slice(0, start) +
-                      codeBlock +
-                      questionText.slice(end);
-                    setQuestionText(newText);
-                    setShowPreview(false);
-                    setTimeout(() => {
-                      ta.focus();
-                      const cursor = start + codeBlock.length;
-                      ta.setSelectionRange(cursor, cursor);
-                    }, 0);
-                  }}
-                >
-                  <Code2 className="size-3.5" />
-                  Code Block
-                </Button>
-                <div className="flex-1" />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-xs gap-1"
-                  onClick={() => setShowPreview(!showPreview)}
-                >
-                  {showPreview ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                  {showPreview ? "Edit" : "Preview"}
-                </Button>
-              </div>
-              {showPreview ? (
-                <div className="min-h-[120px] rounded-md border bg-background p-3">
-                  {questionText.trim() ? (
-                    <QuestionText>{questionText}</QuestionText>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">Nothing to preview</p>
-                  )}
-                </div>
-              ) : (
-                <Textarea
-                  ref={textareaRef}
-                  id="questionText"
-                  value={questionText}
-                  onChange={(e) => setQuestionText(e.target.value)}
-                  placeholder="Enter your question here... (supports Markdown — use ``` for code blocks)"
-                  rows={4}
-                  className="font-mono text-sm"
-                  required
-                />
-              )}
-              <p className="text-xs text-muted-foreground">
-                Supports Markdown. Wrap code in <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]">```</code> fences for proper formatting.
-              </p>
+              <Textarea
+                id="questionText"
+                value={questionText}
+                onChange={(e) => setQuestionText(e.target.value)}
+                placeholder="Enter your question here..."
+                rows={3}
+                required
+              />
+              <p className="text-xs text-muted-foreground">Plain text question shown to students</p>
             </div>
 
+            {/* Block 2: Code Block (optional) */}
             <div className="space-y-2">
-              <Label>Image <span className="text-muted-foreground font-normal">(optional)</span></Label>
-              {imageUrl ? (
-                <div className="relative inline-block">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={imageUrl}
-                    alt="Question image"
-                    className="max-h-48 rounded-md border object-contain"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setImageUrl(null)}
-                    className="absolute -top-2 -right-2 rounded-full bg-destructive text-destructive-foreground p-0.5 shadow"
-                    aria-label="Remove image"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <label className="flex cursor-pointer items-center gap-2 w-fit rounded-md border px-4 h-9 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
-                  <ImagePlus className="size-4" />
-                  Upload Image
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = (ev) => setImageUrl(ev.target?.result as string);
-                      reader.readAsDataURL(file);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-              )}
+              <Label>Code Block <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <select
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={codeLanguage}
+                onChange={(e) => setCodeLanguage(e.target.value)}
+              >
+                <option value="">No language</option>
+                <option value="python">Python</option>
+                <option value="java">Java</option>
+                <option value="c">C</option>
+                <option value="cpp">C++</option>
+                <option value="javascript">JavaScript</option>
+                <option value="typescript">TypeScript</option>
+                <option value="sql">SQL</option>
+              </select>
+              <Textarea
+                value={codeBlock}
+                onChange={(e) => setCodeBlock(e.target.value)}
+                placeholder="Paste or write code here..."
+                rows={5}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">Code displayed with syntax highlighting</p>
             </div>
+
+            {/* Block 3: Images (optional) */}
+            <div className="space-y-2">
+              <Label>Images <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              {imageUrls.length > 0 && (
+                <div className="flex flex-wrap gap-3">
+                  {imageUrls.map((src, i) => (
+                    <div key={i} className="relative group">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt={`Image ${i + 1}`} className="h-24 rounded-md border object-contain" />
+                      <button
+                        type="button"
+                        onClick={() => setImageUrls((prev) => prev.filter((_, idx) => idx !== i))}
+                        className="absolute -top-2 -right-2 size-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const input = document.createElement("input");
+                  input.type = "file";
+                  input.accept = "image/*";
+                  input.multiple = true;
+                  input.onchange = () => {
+                    if (!input.files) return;
+                    Array.from(input.files).forEach((file) => {
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        if (typeof reader.result === "string") {
+                          setImageUrls((prev) => [...prev, reader.result as string]);
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    });
+                  };
+                  input.click();
+                }}
+              >
+                <Plus className="size-4 mr-1" /> Add Image
+              </Button>
+            </div>
+
+            {/* Preview */}
+            {(questionText.trim() || codeBlock.trim()) && (
+              <div className="rounded-lg border p-4">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Preview</p>
+                <QuestionContent
+                  questionText={questionText}
+                  codeBlock={codeBlock || null}
+                  codeLanguage={codeLanguage || null}
+                  imageUrls={imageUrls.length > 0 ? imageUrls : null}
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="questionType">Question Type</Label>

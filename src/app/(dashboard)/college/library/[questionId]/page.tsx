@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Loader2, Plus, Trash2 } from "lucide-react";
 import { CodeTextarea } from "@/components/ui/code-textarea";
+import { QuestionContent } from "@/components/ui/question-content";
 
 interface Option {
   id: string;
@@ -72,6 +73,9 @@ export default function CollegeEditLibraryQuestionPage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [questionText, setQuestionText] = useState("");
+  const [codeBlock, setCodeBlock] = useState("");
+  const [codeLanguage, setCodeLanguage] = useState("");
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [questionType, setQuestionType] = useState("SINGLE_SELECT");
   const [options, setOptions] = useState<Option[]>([]);
   const [correctOptionIds, setCorrectOptionIds] = useState<string[]>([]);
@@ -98,6 +102,9 @@ export default function CollegeEditLibraryQuestionPage() {
 
         const q = await qRes.json();
         setQuestionText(q.questionText);
+        setCodeBlock(q.codeBlock || "");
+        setCodeLanguage(q.codeLanguage || "");
+        setImageUrls(q.imageUrls ? (q.imageUrls as string[]) : []);
         setQuestionType(q.questionType);
         setOptions(q.questionType === "CODING" ? [] : (q.options as Option[]));
         setCorrectOptionIds(q.questionType === "CODING" ? [] : (q.correctOptionIds as string[]));
@@ -162,8 +169,12 @@ export default function CollegeEditLibraryQuestionPage() {
 
     setIsSaving(true);
     const body: Record<string, unknown> = {
-      questionText, questionType, category, difficulty, marks, negativeMarks,
-      explanation: explanation || undefined,
+      questionText,
+      codeBlock: codeBlock.trim() || null,
+      codeLanguage: codeLanguage || null,
+      imageUrls: imageUrls.length > 0 ? imageUrls : null,
+      questionType, category, difficulty, marks, negativeMarks,
+      explanation: explanation || null,
     };
 
     if (isCoding) {
@@ -259,6 +270,94 @@ export default function CollegeEditLibraryQuestionPage() {
                 required
               />
             </div>
+
+            {/* Code Block (optional) */}
+            <div className="space-y-2">
+              <Label>Code Block <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <select
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={codeLanguage}
+                onChange={(e) => setCodeLanguage(e.target.value)}
+              >
+                <option value="">No language</option>
+                <option value="python">Python</option>
+                <option value="java">Java</option>
+                <option value="c">C</option>
+                <option value="cpp">C++</option>
+                <option value="javascript">JavaScript</option>
+                <option value="typescript">TypeScript</option>
+                <option value="sql">SQL</option>
+              </select>
+              <Textarea
+                value={codeBlock}
+                onChange={(e) => setCodeBlock(e.target.value)}
+                placeholder="Paste or write code here..."
+                rows={5}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">Code displayed with syntax highlighting</p>
+            </div>
+
+            {/* Images (optional) */}
+            <div className="space-y-2">
+              <Label>Images <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              {imageUrls.length > 0 && (
+                <div className="flex flex-wrap gap-3">
+                  {imageUrls.map((src, i) => (
+                    <div key={i} className="relative group">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt={`Image ${i + 1}`} className="h-24 rounded-md border object-contain" />
+                      <button
+                        type="button"
+                        onClick={() => setImageUrls((prev) => prev.filter((_, idx) => idx !== i))}
+                        className="absolute -top-2 -right-2 size-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const input = document.createElement("input");
+                  input.type = "file";
+                  input.accept = "image/*";
+                  input.multiple = true;
+                  input.onchange = () => {
+                    if (!input.files) return;
+                    Array.from(input.files).forEach((file) => {
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        if (typeof reader.result === "string") {
+                          setImageUrls((prev) => [...prev, reader.result as string]);
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    });
+                  };
+                  input.click();
+                }}
+              >
+                + Add Image
+              </Button>
+            </div>
+
+            {/* Preview */}
+            {(questionText.trim() || codeBlock.trim()) && (
+              <div className="rounded-lg border p-4">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Preview</p>
+                <QuestionContent
+                  questionText={questionText}
+                  codeBlock={codeBlock || null}
+                  codeLanguage={codeLanguage || null}
+                  imageUrls={imageUrls.length > 0 ? imageUrls : null}
+                />
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-guard";
-import { QuestionType, Difficulty } from "@/generated/prisma/client";
+import { Prisma, QuestionType, Difficulty } from "@/generated/prisma/client";
 
 const optionSchema = z.object({
   id: z.string().min(1),
@@ -25,22 +25,38 @@ const updateSchema = z.object({
   testCases: z.array(testCaseSchema).optional(),
   marks: z.number().int().positive().optional(),
   negativeMarks: z.number().min(0).optional(),
-  explanation: z.string().optional(),
+  explanation: z.string().optional().nullable(),
   category: z.string().min(1).optional(),
   difficulty: z.nativeEnum(Difficulty).optional(),
+  codeBlock: z.string().optional().nullable(),
+  codeLanguage: z.string().optional().nullable(),
+  imageUrls: z.array(z.string()).optional().nullable(),
 });
 
 type RouteParams = { params: Promise<{ questionId: string }> };
 
-function canAccess(
+function canRead(
   userRole: string,
   userCollegeId: string | null,
   questionCollegeId: string | null
 ): boolean {
   if (userRole === "SUPER_ADMIN") return true;
   if (userRole === "COLLEGE_ADMIN") {
-    // College admin can access global questions and their own private questions
+    // College admin can view global questions and their own private questions
     return questionCollegeId === null || questionCollegeId === userCollegeId;
+  }
+  return false;
+}
+
+function canWrite(
+  userRole: string,
+  userCollegeId: string | null,
+  questionCollegeId: string | null
+): boolean {
+  if (userRole === "SUPER_ADMIN") return true;
+  if (userRole === "COLLEGE_ADMIN") {
+    // College admin can only edit/delete their own private questions, not global
+    return questionCollegeId !== null && questionCollegeId === userCollegeId;
   }
   return false;
 }
@@ -73,7 +89,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Question not found" }, { status: 404 });
     }
 
-    if (!canAccess(user.role, user.collegeId, question.collegeId)) {
+    if (!canRead(user.role, user.collegeId, question.collegeId)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -104,7 +120,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Question not found" }, { status: 404 });
     }
 
-    if (!canAccess(user.role, user.collegeId, existing.collegeId)) {
+    if (!canWrite(user.role, user.collegeId, existing.collegeId)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -134,6 +150,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           ...(data.explanation !== undefined && { explanation: data.explanation }),
           ...(data.category !== undefined && { category: data.category }),
           ...(data.difficulty !== undefined && { difficulty: data.difficulty }),
+          ...(data.codeBlock !== undefined && { codeBlock: data.codeBlock }),
+          ...(data.codeLanguage !== undefined && { codeLanguage: data.codeLanguage }),
+          ...(data.imageUrls !== undefined && { imageUrls: data.imageUrls ?? Prisma.JsonNull }),
         },
       });
 
@@ -183,7 +202,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Question not found" }, { status: 404 });
     }
 
-    if (!canAccess(user.role, user.collegeId, existing.collegeId)) {
+    if (!canWrite(user.role, user.collegeId, existing.collegeId)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

@@ -49,11 +49,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Plus, Trash2, Upload, Search, Pencil, Tag, Check, X, Globe, Lock } from "lucide-react";
 
 interface LibraryQuestion {
   id: string;
   questionText: string;
+  codeBlock?: string | null;
+  codeLanguage?: string | null;
   questionType: string;
   category: string;
   difficulty: string;
@@ -90,6 +93,8 @@ export default function AdminLibraryPage() {
   const [data, setData] = useState<PaginatedResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -242,6 +247,50 @@ export default function AdminLibraryPage() {
     }
   }
 
+  function toggleSelection(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (!data) return;
+    const allIds = data.questions.map((q) => q.id);
+    const allSelected = allIds.every((id) => selectedIds.has(id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) allIds.forEach((id) => next.delete(id));
+      else allIds.forEach((id) => next.add(id));
+      return next;
+    });
+  }
+
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const res = await fetch("/api/library/questions/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questionIds: Array.from(selectedIds) }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to delete questions");
+      }
+      const result = await res.json();
+      toast.success(`${result.deleted} question${result.deleted !== 1 ? "s" : ""} deleted`);
+      setSelectedIds(new Set());
+      fetchQuestions();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Something went wrong");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  }
+
   const isGlobalScope = scope === "global";
 
   return (
@@ -253,7 +302,36 @@ export default function AdminLibraryPage() {
             Manage shared questions that college admins can import into tests.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap justify-end">
+          {selectedIds.size > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive">
+                  <Trash2 />
+                  Delete {selectedIds.size}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete {selectedIds.size} Question{selectedIds.size !== 1 ? "s" : ""}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently remove the selected questions from the library. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleBulkDelete}
+                    disabled={isBulkDeleting}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {isBulkDeleting && <Loader2 className="mr-2 size-4 animate-spin" />}
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
           <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">
@@ -462,7 +540,16 @@ export default function AdminLibraryPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">#</TableHead>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={
+                        !!data &&
+                        data.questions.length > 0 &&
+                        data.questions.every((q) => selectedIds.has(q.id))
+                      }
+                      onCheckedChange={toggleAll}
+                    />
+                  </TableHead>
                   <TableHead>Question</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Category</TableHead>
@@ -482,10 +569,13 @@ export default function AdminLibraryPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  data.questions.map((q, idx) => (
+                  data.questions.map((q) => (
                     <TableRow key={q.id}>
-                      <TableCell className="font-medium">
-                        {(data.page - 1) * data.limit + idx + 1}
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(q.id)}
+                          onCheckedChange={() => toggleSelection(q.id)}
+                        />
                       </TableCell>
                       <TableCell className="max-w-md truncate">
                         {q.questionText.length > 80

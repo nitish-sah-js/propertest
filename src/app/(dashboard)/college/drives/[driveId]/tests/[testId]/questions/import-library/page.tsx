@@ -34,6 +34,8 @@ import { ArrowLeft, Loader2, Search, BookOpen } from "lucide-react";
 interface LibraryQuestion {
   id: string;
   questionText: string;
+  codeBlock?: string | null;
+  codeLanguage?: string | null;
   questionType: string;
   category: string;
   difficulty: string;

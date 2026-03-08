@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { ArrowLeft, Download, Globe, Loader2, Lock, Pencil, Plus, Trash2, Upload } from "lucide-react";
 import {
+  parseCSV,
   parseQuestionsCSV,
   generateCSVTemplate,
   type CSVQuestion,
@@ -71,9 +72,7 @@ export default function BulkUploadPage() {
     const csv = generateCSVTemplate();
     if (format === "xlsx") {
       const { utils, writeFile } = await import("xlsx");
-      const rows = csv.trim().split("\n").map((line) =>
-        line.split(",").map((cell) => cell.replace(/^"|"$/g, "").replace(/""/g, '"'))
-      );
+      const rows = parseCSV(csv);
       const ws = utils.aoa_to_sheet(rows);
       const wb = utils.book_new();
       utils.book_append_sheet(wb, ws, "Questions");
@@ -464,10 +463,36 @@ export default function BulkUploadPage() {
 
           {editQ && (
             <div className="space-y-5 py-2">
-              {/* Question Text */}
+              {/* Question Text (Header) */}
               <div className="space-y-2">
                 <Label>Question Text</Label>
-                <Textarea value={editQ.questionText} onChange={(e) => setEQ("questionText", e.target.value)} rows={3} className="font-mono text-sm" />
+                <Textarea value={editQ.questionText} onChange={(e) => setEQ("questionText", e.target.value)} rows={3} className="text-sm" />
+              </div>
+
+              {/* Code Block */}
+              <div className="space-y-2">
+                <Label>Code Block <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <select
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={editQ.codeLanguage || ""}
+                  onChange={(e) => setEQ("codeLanguage", e.target.value || undefined)}
+                >
+                  <option value="">No language</option>
+                  <option value="python">Python</option>
+                  <option value="java">Java</option>
+                  <option value="c">C</option>
+                  <option value="cpp">C++</option>
+                  <option value="javascript">JavaScript</option>
+                  <option value="typescript">TypeScript</option>
+                  <option value="sql">SQL</option>
+                </select>
+                <Textarea
+                  value={editQ.codeBlock || ""}
+                  onChange={(e) => setEQ("codeBlock", e.target.value || undefined)}
+                  placeholder="Paste or write code here..."
+                  rows={4}
+                  className="font-mono text-sm"
+                />
               </div>
 
               {/* Type + Marks */}

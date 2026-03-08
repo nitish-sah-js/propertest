@@ -2,6 +2,9 @@ import { parseCSV, type CSVParseError } from "./csv-parser";
 
 export interface LibraryCSVQuestion {
   questionText: string;
+  codeBlock?: string;
+  codeLanguage?: string;
+  imageUrls?: string[];
   questionType: "SINGLE_SELECT" | "MULTI_SELECT";
   options: { id: string; text: string }[];
   correctOptionIds: string[];
@@ -69,6 +72,15 @@ export function parseLibraryQuestionsCSV(text: string): {
       errors.push({ row: rowNum, message: "Question text is empty" });
       continue;
     }
+
+    // New optional columns
+    const codeBlockIdx = header.indexOf("code_block");
+    const codeBlock = codeBlockIdx !== -1 ? row[codeBlockIdx]?.trim() || undefined : undefined;
+    const codeLangIdx = header.indexOf("code_language");
+    const codeLanguage = codeLangIdx !== -1 ? row[codeLangIdx]?.trim().toLowerCase() || undefined : undefined;
+    const imageUrlsIdx = header.indexOf("image_urls");
+    const imageUrlsRaw = imageUrlsIdx !== -1 ? row[imageUrlsIdx]?.trim() : "";
+    const imageUrls = imageUrlsRaw ? imageUrlsRaw.split(";").map((u) => u.trim()).filter(Boolean) : undefined;
 
     // Category is required
     const category = row[colIndex("category")]?.trim();
@@ -179,6 +191,9 @@ export function parseLibraryQuestionsCSV(text: string): {
 
     questions.push({
       questionText,
+      codeBlock,
+      codeLanguage,
+      imageUrls,
       questionType,
       options,
       correctOptionIds,
@@ -195,10 +210,17 @@ export function parseLibraryQuestionsCSV(text: string): {
 
 /**
  * Generate a CSV template string with category/difficulty columns.
+ * Includes code_block, code_language, and image_urls columns.
  */
 export function generateLibraryCSVTemplate(): string {
-  const header = EXPECTED_HEADERS.join(",");
-  const example1 = `"What is 2+2?","1","2","3","4","4","SINGLE_SELECT","1","0","","Math","EASY"`;
-  const example2 = `"Select all prime numbers","2","3","4","5","1;2;4","MULTI_SELECT","2","0.5","2 3 and 5 are prime","Math","MEDIUM"`;
-  return `${header}\n${example1}\n${example2}\n`;
+  const header = [...EXPECTED_HEADERS, "code_block", "code_language", "image_urls"].join(",");
+  // Plain text
+  const example1 = `"What is 2+2?","1","2","3","4","4","SINGLE_SELECT","1","0","","Math","EASY","","",""`;
+  // Multi-select plain text
+  const example2 = `"Select all prime numbers","2","3","4","5","1;2;4","MULTI_SELECT","2","0.5","2 3 and 5 are prime","Math","MEDIUM","","",""`;
+  // Mixed: header + code block
+  const mixed = `"What is the output of the following code?","Hello, World!","Hello, name!","Error","None","1","SINGLE_SELECT","2","0","f-strings interpolate variables","Python","MEDIUM","def greet(name):\n    return f""Hello, {name}!""\nprint(greet(""World""))","python",""`;
+  // Code block only
+  const pureCode = `"What is the output?","5","10","15","Error","3","SINGLE_SELECT","2","0","a + b = 5 + 10 = 15","C Programming","EASY","#include <stdio.h>\nint main() {\n    int a = 5, b = 10;\n    printf(""%d"", a + b);\n    return 0;\n}","c",""`;
+  return `${header}\n${example1}\n${example2}\n${mixed}\n${pureCode}\n`;
 }

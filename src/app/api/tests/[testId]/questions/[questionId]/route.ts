@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-guard";
-import { QuestionType } from "@/generated/prisma/client";
+import { Prisma, QuestionType } from "@/generated/prisma/client";
 
 const optionSchema = z.object({
   id: z.string().min(1),
@@ -27,6 +27,9 @@ const updateQuestionSchema = z.object({
   negativeMarks: z.number().min(0).optional(),
   explanation: z.string().optional().nullable(),
   order: z.number().int().min(0).optional(),
+  codeBlock: z.string().optional().nullable(),
+  codeLanguage: z.string().optional().nullable(),
+  imageUrls: z.array(z.string()).optional().nullable(),
 });
 
 type RouteParams = {
@@ -118,12 +121,15 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    const { testCases, ...questionData } = parsed.data;
+    const { testCases, imageUrls, ...questionData } = parsed.data;
 
     const question = await prisma.$transaction(async (tx) => {
       const updated = await tx.question.update({
         where: { id: questionId },
-        data: questionData,
+        data: {
+          ...questionData,
+          ...(imageUrls !== undefined && { imageUrls: imageUrls ?? Prisma.JsonNull }),
+        },
         include: { testCases: true },
       });
 

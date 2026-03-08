@@ -61,12 +61,6 @@ import {
 
 const PAGE_SIZE = 15;
 
-const dateFormatter = new Intl.DateTimeFormat("en", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-});
-
 interface Department {
   id: string;
   name: string;
@@ -508,15 +502,13 @@ export default function StudentsListPage() {
                 <TableHead className="px-4">Department</TableHead>
                 <TableHead className="px-4">Semester</TableHead>
                 <TableHead className="px-4 text-center">Tests</TableHead>
-                <TableHead className="px-4 text-center">Avg Score</TableHead>
-                <TableHead className="px-4">Joined</TableHead>
                 <TableHead className="w-[88px] px-4" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {students.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={10} className="h-48 text-center">
+                  <TableCell colSpan={8} className="h-48 text-center">
                     <div className="flex flex-col items-center gap-3 py-6">
                       <div className="rounded-full bg-muted p-3">
                         <Users
@@ -601,16 +593,6 @@ export default function StudentsListPage() {
                     </TableCell>
                     <TableCell className="px-4 text-center tabular-nums">
                       {student.testsTaken}
-                    </TableCell>
-                    <TableCell className="px-4 text-center tabular-nums">
-                      {student.averageScore !== null ? (
-                        `${student.averageScore}%`
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="px-4 tabular-nums text-muted-foreground">
-                      {dateFormatter.format(new Date(student.createdAt))}
                     </TableCell>
                     <TableCell className="px-4">
                       <div className="flex items-center justify-end gap-1">

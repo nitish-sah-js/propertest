@@ -26,8 +26,11 @@ const mcqQuestionSchema = z.object({
     .min(1, "At least 1 correct option is required"),
   marks: z.number().int().positive().optional(),
   negativeMarks: z.number().min(0).optional(),
-  explanation: z.string().optional(),
+  explanation: z.string().optional().nullable(),
   order: z.number().int().min(0).optional(),
+  codeBlock: z.string().optional().nullable(),
+  codeLanguage: z.string().optional().nullable(),
+  imageUrls: z.array(z.string()).optional().nullable(),
 });
 
 const codingQuestionSchema = z.object({
@@ -37,8 +40,11 @@ const codingQuestionSchema = z.object({
   testCases: z.array(testCaseSchema).min(1, "At least 1 test case is required"),
   marks: z.number().int().positive().optional(),
   negativeMarks: z.number().min(0).optional(),
-  explanation: z.string().optional(),
+  explanation: z.string().optional().nullable(),
   order: z.number().int().min(0).optional(),
+  codeBlock: z.string().optional().nullable(),
+  codeLanguage: z.string().optional().nullable(),
+  imageUrls: z.array(z.string()).optional().nullable(),
 });
 
 const createQuestionSchema = z.discriminatedUnion("questionType", [
@@ -57,8 +63,11 @@ const legacySchema = z.object({
   testCases: z.array(testCaseSchema).optional(),
   marks: z.number().int().positive().optional(),
   negativeMarks: z.number().min(0).optional(),
-  explanation: z.string().optional(),
+  explanation: z.string().optional().nullable(),
   order: z.number().int().min(0).optional(),
+  codeBlock: z.string().optional().nullable(),
+  codeLanguage: z.string().optional().nullable(),
+  imageUrls: z.array(z.string()).optional().nullable(),
 });
 
 type RouteParams = { params: Promise<{ testId: string }> };
@@ -151,7 +160,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const body = await request.json();
 
     // Try discriminated union first, fallback to legacy
-    let parsed = createQuestionSchema.safeParse(body);
+    const parsed = createQuestionSchema.safeParse(body);
     if (!parsed.success) {
       // Try legacy format
       const legacyParsed = legacySchema.safeParse(body);
@@ -216,6 +225,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           negativeMarks: data.negativeMarks,
           explanation: data.explanation,
           order: data.order,
+          codeBlock: data.codeBlock ?? null,
+          codeLanguage: data.codeLanguage ?? null,
+          imageUrls: data.imageUrls ?? undefined,
         },
         include: { testCases: true },
       });

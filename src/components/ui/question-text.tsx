@@ -60,6 +60,17 @@ function autoDetectCodeBlocks(text: string): string {
 
   const paragraphs = text.split(/\n\s*\n/);
 
+  // If the entire text is a single paragraph that looks like code, wrap it all
+  if (paragraphs.length === 1) {
+    const trimmed = text.trim();
+    if (isLikelyCode(trimmed)) {
+      const lang = guessLanguage(trimmed);
+      const formatted = formatCode(trimmed);
+      return "```" + lang + "\n" + formatted + "\n```";
+    }
+    return text;
+  }
+
   const processed = paragraphs.map((para) => {
     const trimmed = para.trim();
     if (!trimmed) return para;

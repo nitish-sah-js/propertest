@@ -11,7 +11,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SubmitDialog } from "@/components/test/submit-dialog";
 import { ViolationBanner } from "@/components/test/violation-banner";
 import { useProctoring } from "@/hooks/use-proctoring";
-import { CodeTextarea } from "@/components/ui/code-textarea";
 import {
   Clock,
   ChevronLeft,
@@ -27,6 +26,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuestionText } from "@/components/ui/question-text";
+import { QuestionContent } from "@/components/ui/question-content";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -45,7 +45,10 @@ interface SampleTestCase {
 interface Question {
   id: string;
   questionText: string;
+  codeBlock?: string | null;
+  codeLanguage?: string | null;
   imageUrl?: string | null;
+  imageUrls?: string[] | null;
   questionType: "SINGLE_SELECT" | "MULTI_SELECT" | "CODING";
   options: Option[];
   marks: number;
@@ -643,31 +646,15 @@ export function TestInterface({ testId }: TestInterfaceProps) {
                   )}
                 </div>
 
-                {/* Question text */}
-                {currentQuestion.questionType === "CODING" ? (
-                  <div className="mb-6">
-                    <CodeTextarea
-                      value={currentQuestion.questionText}
-                      readOnly
-                      rows={Math.min(20, currentQuestion.questionText.split("\n").length + 2)}
-                      label="question"
-                    />
-                  </div>
-                ) : (
-                  <QuestionText className="text-xl font-semibold leading-relaxed mb-4 text-foreground [&_p]:text-xl [&_p]:font-semibold">
-                    {currentQuestion.questionText}
-                  </QuestionText>
-                )}
-
-                {/* Question image */}
-                {currentQuestion.imageUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={currentQuestion.imageUrl}
-                    alt="Question illustration"
-                    className="mb-8 max-h-64 rounded-md border object-contain"
-                  />
-                )}
+                {/* Question content: header + code + images */}
+                <QuestionContent
+                  questionText={currentQuestion.questionText}
+                  codeBlock={currentQuestion.codeBlock}
+                  codeLanguage={currentQuestion.codeLanguage}
+                  imageUrl={currentQuestion.imageUrl}
+                  imageUrls={currentQuestion.imageUrls}
+                  className="mb-4 [&_p]:text-xl [&_p]:font-semibold text-xl font-semibold leading-relaxed text-foreground"
+                />
 
                 {/* MCQ Options */}
                 {currentQuestion.options.length > 0 && (

@@ -6,7 +6,10 @@ export interface CSVTestCase {
 
 export interface CSVQuestion {
   questionText: string;
+  codeBlock?: string;
+  codeLanguage?: string;
   imageUrl?: string;
+  imageUrls?: string[];
   questionType: "SINGLE_SELECT" | "MULTI_SELECT" | "CODING";
   // MCQ fields (empty arrays for CODING)
   options: { id: string; text: string }[];
@@ -161,8 +164,17 @@ export function parseQuestionsCSV(text: string): {
     }
 
     const explanation = row[colIndex("explanation")] || undefined;
+
+    // New optional columns: code_block, code_language, image_urls
+    const codeBlockIdx = header.indexOf("code_block");
+    const codeBlock = codeBlockIdx !== -1 ? row[codeBlockIdx]?.trim() || undefined : undefined;
+    const codeLangIdx = header.indexOf("code_language");
+    const codeLanguage = codeLangIdx !== -1 ? row[codeLangIdx]?.trim().toLowerCase() || undefined : undefined;
     const imageUrlIdx = header.indexOf("image_url");
     const imageUrl = imageUrlIdx !== -1 ? row[imageUrlIdx]?.trim() || undefined : undefined;
+    const imageUrlsIdx = header.indexOf("image_urls");
+    const imageUrlsRaw = imageUrlsIdx !== -1 ? row[imageUrlsIdx]?.trim() : "";
+    const imageUrls = imageUrlsRaw ? imageUrlsRaw.split(";").map((u) => u.trim()).filter(Boolean) : undefined;
 
     // --- MCQ / CODING path (CODING uses MCQ options for answers) ---
     // Collect non-empty options
@@ -213,7 +225,10 @@ export function parseQuestionsCSV(text: string): {
 
     questions.push({
       questionText,
+      codeBlock,
+      codeLanguage,
       imageUrl,
+      imageUrls,
       questionType,
       options,
       correctOptionIds,
@@ -317,13 +332,18 @@ export function parseEligibilityCSV(text: string): {
 
 /**
  * Generate a CSV template string for download.
- * Includes MCQ (single/multi) and CODING examples.
- * CODING questions display in code format; students answer via MCQ options.
+ * Columns: question_text (header), code_block, code_language, options, correct_answers,
+ * question_type, marks, negative_marks, explanation, image_urls
  */
 export function generateCSVTemplate(): string {
-  const header = [...EXPECTED_HEADERS, "image_url"].join(",");
-  const mcq1 = `"What is 2+2?","1","2","3","4","4","SINGLE_SELECT","1","0","",""`;
-  const mcq2 = `"Select all prime numbers","2","3","4","5","1;2;4","MULTI_SELECT","2","0.5","2 3 and 5 are prime",""`;
-  const coding = `"What is the output of the following Python code? print(2 + 2)","2","4","6","8","2","CODING","2","0","print() outputs 4",""`;
-  return `${header}\n${mcq1}\n${mcq2}\n${coding}\n`;
+  const header = [...EXPECTED_HEADERS, "code_block", "code_language", "image_urls"].join(",");
+  // Row 1: Plain text only (no code block)
+  const mcq1 = `"What is 2+2?","1","2","3","4","4","SINGLE_SELECT","1","0","","","",""`;
+  // Row 2: Multi-select plain text
+  const mcq2 = `"Select all prime numbers","2","3","4","5","1;2;4","MULTI_SELECT","2","0.5","2 3 and 5 are prime","","",""`;
+  // Row 3: Header text + code block (mixed)
+  const mixed = `"What is the output of the following code?","[3, 2, 1]","[1, 2, 3]","[1, 3, 2]","Error","1","SINGLE_SELECT","2","0","Slicing with [::-1] reverses the list","x = [1, 2, 3]\nprint(x[::-1])","python",""`;
+  // Row 4: Code block only (no header text needed, but can add a short prompt)
+  const coding = `"What is the output?","10","11","12","13","3","SINGLE_SELECT","2","0","x++ is 5 (post), then x becomes 7 (pre), 5+7=12","public class Main {\n    public static void main(String[] args) {\n        int x = 5;\n        System.out.println(x++ + ++x);\n    }\n}","java",""`;
+  return `${header}\n${mcq1}\n${mcq2}\n${mixed}\n${coding}\n`;
 }

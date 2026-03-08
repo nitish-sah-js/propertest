@@ -23,10 +23,13 @@ import {
   Save,
   ShieldAlert,
   Code2,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuestionText } from "@/components/ui/question-text";
 import { QuestionContent } from "@/components/ui/question-content";
+import { useTheme } from "next-themes";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -91,6 +94,7 @@ interface TestInterfaceProps {
 
 export function TestInterface({ testId }: TestInterfaceProps) {
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
 
   // Core state
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -583,6 +587,18 @@ export function TestInterface({ testId }: TestInterfaceProps) {
               {violations.totalViolations}/5
             </div>
           )}
+
+          {/* Dark mode toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          >
+            <Sun className="size-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute size-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Toggle theme</span>
+          </Button>
 
           {/* Timer */}
           <div

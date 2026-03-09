@@ -316,7 +316,7 @@ model LibraryQuestion {
   marks            Int          @default(1)
   negativeMarks    Float        @default(0)
   explanation      String?
-  category         String
+  categories       String[]
   difficulty       Difficulty   @default(MEDIUM)
   collegeId        String?      // null = global, non-null = private (college-specific)
   createdById      String

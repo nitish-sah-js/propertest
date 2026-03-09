@@ -60,7 +60,7 @@ interface LibraryQuestion {
   codeBlock?: string | null;
   codeLanguage?: string | null;
   questionType: string;
-  category: string;
+  categories: string[];
   difficulty: string;
   marks: number;
   collegeId: string | null;
@@ -296,6 +296,19 @@ export default function CollegeLibraryPage() {
     }
   }
 
+  function getActiveFilters() {
+    const filters: Record<string, string> = {};
+    if (search) filters.search = search;
+    if (category) filters.category = category;
+    if (difficulty) filters.difficulty = difficulty;
+    if (type) filters.type = type;
+    filters.scope = scope;
+    return filters;
+  }
+
+  const hasActiveFilter = !!(search || category || difficulty || type);
+  const totalQuestions = data?.total ?? 0;
+
   async function handleBulkDelete() {
     if (selectedIds.size === 0) return;
     setIsBulkDeleting(true);
@@ -304,6 +317,29 @@ export default function CollegeLibraryPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ questionIds: Array.from(selectedIds) }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to delete questions");
+      }
+      const result = await res.json();
+      toast.success(`${result.deleted} question${result.deleted !== 1 ? "s" : ""} deleted`);
+      setSelectedIds(new Set());
+      refreshQuestions();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Something went wrong");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  }
+
+  async function handleFilteredDelete() {
+    setIsBulkDeleting(true);
+    try {
+      const res = await fetch("/api/library/questions/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filters: getActiveFilters() }),
       });
       if (!res.ok) {
         const error = await res.json();
@@ -457,6 +493,35 @@ export default function CollegeLibraryPage() {
                   >
                     {isBulkDeleting && <Loader2 className="mr-2 size-4 animate-spin" />}
                     Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          {hasActiveFilter && !isGlobalScope && totalQuestions > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive">
+                  <Trash2 />
+                  Delete All Filtered ({totalQuestions})
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete all filtered questions?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete all {totalQuestions} question{totalQuestions !== 1 ? "s" : ""} matching the current filters (across all pages). This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleFilteredDelete}
+                    disabled={isBulkDeleting}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {isBulkDeleting && <Loader2 className="mr-2 size-4 animate-spin" />}
+                    Delete All ({totalQuestions})
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -661,7 +726,11 @@ export default function CollegeLibraryPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{q.category}</Badge>
+                        <div className="flex flex-wrap gap-1">
+                          {q.categories.map((cat) => (
+                            <Badge key={cat} variant="secondary">{cat}</Badge>
+                          ))}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant={difficultyColor[q.difficulty] ?? "secondary"}>

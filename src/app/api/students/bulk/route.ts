@@ -4,11 +4,43 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-guard";
 import { hashPassword } from "better-auth/crypto";
 
-const bulkDeleteSchema = z.object({
-  studentIds: z.array(z.string()).min(1),
+const filtersSchema = z.object({
+  departmentId: z.string().optional(),
+  semester: z.number().int().min(1).max(8).optional(),
+  graduated: z.enum(["true", "false"]).optional(),
+  search: z.string().optional(),
 });
 
+const bulkDeleteSchema = z.object({
+  studentIds: z.array(z.string()).min(1).optional(),
+  filters: filtersSchema.optional(),
+}).refine((d) => d.studentIds || d.filters, {
+  message: "Either studentIds or filters must be provided",
+});
+
+// Build a Prisma where clause from filter params, scoped to the admin's college
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildFilterWhere(collegeId: string, filters: z.infer<typeof filtersSchema>): Record<string, any> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const where: Record<string, any> = {
+    collegeId,
+    role: "STUDENT",
+  };
+  if (filters.departmentId) where.departmentId = filters.departmentId;
+  if (filters.semester) where.semester = filters.semester;
+  if (filters.graduated === "true") where.isGraduated = true;
+  else if (filters.graduated === "false") where.isGraduated = false;
+  if (filters.search) {
+    where.OR = [
+      { name: { contains: filters.search, mode: "insensitive" } },
+      { usn: { contains: filters.search, mode: "insensitive" } },
+    ];
+  }
+  return where;
+}
+
 // DELETE /api/students/bulk — bulk delete student accounts (COLLEGE_ADMIN only)
+// Accepts either { studentIds: [...] } or { filters: { departmentId?, semester?, graduated?, search? } }
 export async function DELETE(request: NextRequest) {
   try {
     const session = await getSession();
@@ -30,15 +62,19 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const { studentIds } = parsed.data;
-
-    const result = await prisma.user.deleteMany({
-      where: {
-        id: { in: studentIds },
-        collegeId: user.collegeId,
-        role: "STUDENT",
-      },
-    });
+    let result;
+    if (parsed.data.studentIds) {
+      result = await prisma.user.deleteMany({
+        where: {
+          id: { in: parsed.data.studentIds },
+          collegeId: user.collegeId,
+          role: "STUDENT",
+        },
+      });
+    } else {
+      const where = buildFilterWhere(user.collegeId, parsed.data.filters!);
+      result = await prisma.user.deleteMany({ where });
+    }
 
     return NextResponse.json({ deleted: result.count });
   } catch (error) {
@@ -51,10 +87,14 @@ export async function DELETE(request: NextRequest) {
 }
 
 const bulkPromoteSchema = z.object({
-  studentIds: z.array(z.string()).min(1),
+  studentIds: z.array(z.string()).min(1).optional(),
+  filters: filtersSchema.optional(),
+}).refine((d) => d.studentIds || d.filters, {
+  message: "Either studentIds or filters must be provided",
 });
 
 // PATCH /api/students/bulk — bulk promote (increment semester) for students (COLLEGE_ADMIN only)
+// Accepts either { studentIds: [...] } or { filters: { departmentId?, semester?, graduated?, search? } }
 export async function PATCH(request: NextRequest) {
   try {
     const session = await getSession();
@@ -76,14 +116,23 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const { studentIds } = parsed.data;
-
-    // Fetch eligible students: belong to this college, STUDENT role, not graduated, semester set
-    const students = await prisma.user.findMany({
-      where: {
-        id: { in: studentIds },
+    // Build where clause: either by IDs or by filters, then add promote-eligibility constraints
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let baseWhere: Record<string, any>;
+    if (parsed.data.studentIds) {
+      baseWhere = {
+        id: { in: parsed.data.studentIds },
         collegeId: user.collegeId,
         role: "STUDENT",
+      };
+    } else {
+      baseWhere = buildFilterWhere(user.collegeId, parsed.data.filters!);
+    }
+
+    // Fetch eligible students: not graduated, semester set
+    const students = await prisma.user.findMany({
+      where: {
+        ...baseWhere,
         isGraduated: false,
         semester: { not: null },
       },

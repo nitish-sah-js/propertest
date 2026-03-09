@@ -11,7 +11,7 @@ export interface LibraryCSVQuestion {
   marks: number;
   negativeMarks: number;
   explanation?: string;
-  category: string;
+  categories: string[];
   difficulty: "EASY" | "MEDIUM" | "HARD";
 }
 
@@ -26,7 +26,7 @@ const EXPECTED_HEADERS = [
   "marks",
   "negative_marks",
   "explanation",
-  "category",
+  "categories",
   "difficulty",
 ];
 
@@ -82,10 +82,15 @@ export function parseLibraryQuestionsCSV(text: string): {
     const imageUrlsRaw = imageUrlsIdx !== -1 ? row[imageUrlsIdx]?.trim() : "";
     const imageUrls = imageUrlsRaw ? imageUrlsRaw.split(";").map((u) => u.trim()).filter(Boolean) : undefined;
 
-    // Category is required
-    const category = row[colIndex("category")]?.trim();
-    if (!category) {
-      errors.push({ row: rowNum, message: "Category is required" });
+    // Categories are required (pipe-separated for multiple, e.g. "Math|DSA")
+    const categoriesRaw = row[colIndex("categories")]?.trim();
+    if (!categoriesRaw) {
+      errors.push({ row: rowNum, message: "At least one category is required" });
+      continue;
+    }
+    const categories = categoriesRaw.split("|").map((c) => c.trim()).filter(Boolean);
+    if (categories.length === 0) {
+      errors.push({ row: rowNum, message: "At least one category is required" });
       continue;
     }
 
@@ -200,7 +205,7 @@ export function parseLibraryQuestionsCSV(text: string): {
       marks,
       negativeMarks,
       explanation,
-      category,
+      categories,
       difficulty,
     });
   }
@@ -216,10 +221,10 @@ export function generateLibraryCSVTemplate(): string {
   const header = [...EXPECTED_HEADERS, "code_block", "code_language", "image_urls"].join(",");
   // Plain text
   const example1 = `"What is 2+2?","1","2","3","4","4","SINGLE_SELECT","1","0","","Math","EASY","","",""`;
-  // Multi-select plain text
-  const example2 = `"Select all prime numbers","2","3","4","5","1;2;4","MULTI_SELECT","2","0.5","2 3 and 5 are prime","Math","MEDIUM","","",""`;
+  // Multi-select with multiple categories (pipe-separated)
+  const example2 = `"Select all prime numbers","2","3","4","5","1;2;4","MULTI_SELECT","2","0.5","2 3 and 5 are prime","Math|Logic","MEDIUM","","",""`;
   // Mixed: header + code block
-  const mixed = `"What is the output of the following code?","Hello, World!","Hello, name!","Error","None","1","SINGLE_SELECT","2","0","f-strings interpolate variables","Python","MEDIUM","def greet(name):\n    return f""Hello, {name}!""\nprint(greet(""World""))","python",""`;
+  const mixed = `"What is the output of the following code?","Hello, World!","Hello, name!","Error","None","1","SINGLE_SELECT","2","0","f-strings interpolate variables","Python|Programming","MEDIUM","def greet(name):\n    return f""Hello, {name}!""\nprint(greet(""World""))","python",""`;
   // Code block only
   const pureCode = `"What is the output?","5","10","15","Error","3","SINGLE_SELECT","2","0","a + b = 5 + 10 = 15","C Programming","EASY","#include <stdio.h>\nint main() {\n    int a = 5, b = 10;\n    printf(""%d"", a + b);\n    return 0;\n}","c",""`;
   return `${header}\n${example1}\n${example2}\n${mixed}\n${pureCode}\n`;

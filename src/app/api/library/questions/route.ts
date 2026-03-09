@@ -24,7 +24,7 @@ const mcqSchema = z.object({
   marks: z.number().int().positive().default(1),
   negativeMarks: z.number().min(0).default(0),
   explanation: z.string().optional().nullable(),
-  category: z.string().min(1, "Category is required"),
+  categories: z.array(z.string().min(1)).min(1, "At least one category is required"),
   difficulty: z.nativeEnum(Difficulty).default("MEDIUM"),
   scope: z.enum(["global", "private"]).default("global"),
   codeBlock: z.string().optional().nullable(),
@@ -39,7 +39,7 @@ const codingSchema = z.object({
   marks: z.number().int().positive().default(1),
   negativeMarks: z.number().min(0).default(0),
   explanation: z.string().optional().nullable(),
-  category: z.string().min(1, "Category is required"),
+  categories: z.array(z.string().min(1)).min(1, "At least one category is required"),
   difficulty: z.nativeEnum(Difficulty).default("MEDIUM"),
   scope: z.enum(["global", "private"]).default("global"),
   codeBlock: z.string().optional().nullable(),
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (category) andConditions.push({ category });
+    if (category) andConditions.push({ categories: { has: category } });
     if (difficulty && Object.values(Difficulty).includes(difficulty as Difficulty)) {
       andConditions.push({ difficulty });
     }
@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
           marks: data.marks,
           negativeMarks: data.negativeMarks,
           explanation: data.explanation,
-          category: data.category,
+          categories: data.categories,
           difficulty: data.difficulty,
           collegeId,
           createdById: user.id,

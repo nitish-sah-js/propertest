@@ -184,6 +184,16 @@ export default function StudentsListPage() {
     }
   }
 
+  // Build the current filter params for server-side filtered operations
+  function getActiveFilters() {
+    const filters: Record<string, string | number> = {};
+    if (departmentFilter !== "all") filters.departmentId = departmentFilter;
+    if (semesterFilter !== "all") filters.semester = parseInt(semesterFilter, 10);
+    if (graduatedFilter !== "all") filters.graduated = graduatedFilter;
+    if (usnSearch) filters.search = usnSearch;
+    return filters;
+  }
+
   async function handleBulkDelete(ids: string[]) {
     setDeleting(true);
     try {
@@ -212,6 +222,32 @@ export default function StudentsListPage() {
     }
   }
 
+  async function handleFilteredDelete() {
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/students/bulk", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filters: getActiveFilters() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(
+          `Deleted ${data.deleted} student${data.deleted !== 1 ? "s" : ""}`
+        );
+        setSelected(new Set());
+        refreshStudents();
+      } else {
+        toast.error(data.error || "Failed to delete students");
+      }
+    } catch {
+      toast.error("Failed to delete students");
+    } finally {
+      setDeleting(false);
+      setDeleteFilteredDialogOpen(false);
+    }
+  }
+
   async function handleBulkPromote(ids: string[]) {
     setPromoting(true);
     try {
@@ -236,6 +272,33 @@ export default function StudentsListPage() {
     } finally {
       setPromoting(false);
       setPromoteDialogOpen(false);
+      setPromoteFilteredDialogOpen(false);
+    }
+  }
+
+  async function handleFilteredPromote() {
+    setPromoting(true);
+    try {
+      const res = await fetch("/api/students/bulk", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filters: getActiveFilters() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const parts: string[] = [];
+        if (data.promoted > 0) parts.push(`${data.promoted} promoted`);
+        if (data.graduated > 0) parts.push(`${data.graduated} graduated`);
+        toast.success(parts.join(", ") || "No eligible students to promote");
+        setSelected(new Set());
+        refreshStudents();
+      } else {
+        toast.error(data.error || "Failed to promote students");
+      }
+    } catch {
+      toast.error("Failed to promote students");
+    } finally {
+      setPromoting(false);
       setPromoteFilteredDialogOpen(false);
     }
   }
@@ -442,7 +505,7 @@ export default function StudentsListPage() {
               </Button>
             </>
           )}
-          {hasActiveFilter && students.length > 0 && (
+          {hasActiveFilter && totalStudents > 0 && (
             <>
               {selected.size > 0 && (
                 <span
@@ -456,14 +519,14 @@ export default function StudentsListPage() {
                 onClick={() => setDeleteFilteredDialogOpen(true)}
               >
                 <Trash2 className="size-4" aria-hidden="true" />
-                Delete Filtered ({students.length})
+                Delete All Filtered ({totalStudents})
               </Button>
               <Button
                 size="sm"
                 onClick={() => setPromoteFilteredDialogOpen(true)}
               >
                 <ArrowUpCircle className="size-4" aria-hidden="true" />
-                Promote Filtered ({students.length})
+                Promote All Filtered ({totalStudents})
               </Button>
             </>
           )}
@@ -758,17 +821,15 @@ export default function StudentsListPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete all filtered students?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete all {students.length} student
-              {students.length !== 1 ? "s" : ""} matching the current
-              filters and all their test attempts. This action cannot be undone.
+              This will permanently delete all {totalStudents} student
+              {totalStudents !== 1 ? "s" : ""} matching the current
+              filters (across all pages) and all their test attempts. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() =>
-                handleBulkDelete(students.map((s) => s.id))
-              }
+              onClick={handleFilteredDelete}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
@@ -777,7 +838,7 @@ export default function StudentsListPage() {
               ) : (
                 <Trash2 className="size-4" aria-hidden="true" />
               )}
-              Delete All ({students.length})
+              Delete All ({totalStudents})
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -821,9 +882,9 @@ export default function StudentsListPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Promote all filtered students?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will increment the semester for all {students.length}{" "}
-              student{students.length !== 1 ? "s" : ""} matching the
-              current filters. Students in semester 8 will be marked as
+              This will increment the semester for all {totalStudents}{" "}
+              student{totalStudents !== 1 ? "s" : ""} matching the
+              current filters (across all pages). Students in semester 8 will be marked as
               graduated. Students without a semester or already graduated will be
               skipped.
             </AlertDialogDescription>
@@ -831,9 +892,7 @@ export default function StudentsListPage() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={promoting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() =>
-                handleBulkPromote(students.map((s) => s.id))
-              }
+              onClick={handleFilteredPromote}
               disabled={promoting}
             >
               {promoting ? (
@@ -841,7 +900,7 @@ export default function StudentsListPage() {
               ) : (
                 <ArrowUpCircle className="size-4" aria-hidden="true" />
               )}
-              Promote All ({students.length})
+              Promote All ({totalStudents})
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

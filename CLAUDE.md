@@ -26,6 +26,7 @@ No test framework is configured. Utility scripts in `scripts/` run via `tsx scri
 - `generate-test-csv.ts` — Generate a CSV of random students from DB
 - `test-eligibility.ts` — Run eligibility logic tests against live DB
 - `reset-and-seed-students.ts` — Reset and re-seed student data
+- `seed-students.ts` — Seed student records into a college
 
 Judge0 (code execution engine for coding questions):
 ```bash

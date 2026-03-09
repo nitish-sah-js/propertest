@@ -37,12 +37,16 @@ export async function GET() {
       orderBy: { name: "asc" },
     });
 
-    // Also fetch distinct category strings from existing library questions
-    const distinctCategories = await prisma.libraryQuestion.findMany({
-      select: { category: true },
-      distinct: ["category"],
-      orderBy: { category: "asc" },
+    // Also fetch distinct category strings from existing library questions (categories is String[])
+    const allQuestions = await prisma.libraryQuestion.findMany({
+      select: { categories: true },
     });
+    const distinctCategoryNames = new Set<string>();
+    for (const q of allQuestions) {
+      for (const cat of q.categories) {
+        if (cat) distinctCategoryNames.add(cat);
+      }
+    }
 
     // Merge managed categories with distinct question categories
     const managedNames = new Set(categories.map((c) => c.name));
@@ -52,9 +56,9 @@ export async function GET() {
       isGlobal: c.collegeId === null,
     }));
 
-    for (const dq of distinctCategories) {
-      if (dq.category && !managedNames.has(dq.category)) {
-        result.push({ id: dq.category, name: dq.category, isGlobal: true });
+    for (const catName of distinctCategoryNames) {
+      if (!managedNames.has(catName)) {
+        result.push({ id: catName, name: catName, isGlobal: true });
       }
     }
 

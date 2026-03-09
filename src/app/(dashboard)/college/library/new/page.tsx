@@ -73,10 +73,10 @@ export default function CollegeNewLibraryQuestionPage() {
   const [marks, setMarks] = useState(1);
   const [negativeMarks, setNegativeMarks] = useState(0);
   const [explanation, setExplanation] = useState("");
-  const [category, setCategory] = useState("");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [customCategory, setCustomCategory] = useState("");
   const [difficulty, setDifficulty] = useState("MEDIUM");
   const [scope, setScope] = useState<"global" | "private">(scopeParam as "global" | "private");
-  const [useCustomCategory, setUseCustomCategory] = useState(false);
   const [categories, setCategories] = useState<{ id: string; name: string; isGlobal: boolean }[]>([]);
   const [testCases, setTestCases] = useState<TestCaseInput[]>([
     { id: generateTestCaseId(), input: "", expectedOutput: "", isSample: true },
@@ -135,7 +135,7 @@ export default function CollegeNewLibraryQuestionPage() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!questionText.trim()) { toast.error("Question text is required"); return; }
-    if (!category.trim()) { toast.error("Category is required"); return; }
+    if (selectedCategories.length === 0) { toast.error("At least one category is required"); return; }
 
     setIsSubmitting(true);
 
@@ -155,7 +155,7 @@ export default function CollegeNewLibraryQuestionPage() {
         imageUrls: imageUrls.length > 0 ? imageUrls : null,
         questionType: "CODING",
         testCases: validTestCases.map((tc, idx) => ({ input: tc.input, expectedOutput: tc.expectedOutput, isSample: tc.isSample, order: idx })),
-        marks, negativeMarks, explanation: explanation || null, category, difficulty, scope,
+        marks, negativeMarks, explanation: explanation || null, categories: selectedCategories, difficulty, scope,
       };
     } else {
       const filledOptions = options.filter((o) => o.text.trim());
@@ -167,7 +167,7 @@ export default function CollegeNewLibraryQuestionPage() {
         codeLanguage: codeLanguage || null,
         imageUrls: imageUrls.length > 0 ? imageUrls : null,
         questionType, options: filledOptions, correctOptionIds,
-        marks, negativeMarks, explanation: explanation || null, category, difficulty, scope,
+        marks, negativeMarks, explanation: explanation || null, categories: selectedCategories, difficulty, scope,
       };
     }
 
@@ -351,32 +351,75 @@ export default function CollegeNewLibraryQuestionPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>
-                  Category <span className="text-destructive">*</span>
+                  Categories <span className="text-destructive">*</span>
                 </Label>
-                {categories.length > 0 && !useCustomCategory ? (
-                  <div className="space-y-1.5">
-                    <Select value={category} onValueChange={setCategory}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <button type="button" className="text-xs text-muted-foreground hover:underline" onClick={() => { setUseCustomCategory(true); setCategory(""); }}>
-                      Or type a custom category
-                    </button>
+                {categories.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {categories.map((cat) => {
+                      const isChecked = selectedCategories.includes(cat.name);
+                      return (
+                        <label key={cat.id} className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm cursor-pointer transition-colors ${isChecked ? "bg-primary/10 border-primary" : "hover:bg-muted"}`}>
+                          <Checkbox
+                            checked={isChecked}
+                            onCheckedChange={(checked) => {
+                              if (checked) setSelectedCategories((prev) => [...prev, cat.name]);
+                              else setSelectedCategories((prev) => prev.filter((c) => c !== cat.name));
+                            }}
+                          />
+                          {cat.name}
+                          {cat.isGlobal && <Badge variant="secondary" className="text-[10px] px-1 py-0 ml-1">Global</Badge>}
+                        </label>
+                      );
+                    })}
                   </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Math, DSA, DBMS" required />
-                    {categories.length > 0 && (
-                      <button type="button" className="text-xs text-muted-foreground hover:underline" onClick={() => { setUseCustomCategory(false); setCategory(""); }}>
-                        Select from existing categories
-                      </button>
-                    )}
+                )}
+                <div className="flex gap-2">
+                  <Input
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    placeholder="Add custom category"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const val = customCategory.trim();
+                        if (val && !selectedCategories.includes(val)) {
+                          setSelectedCategories((prev) => [...prev, val]);
+                          setCustomCategory("");
+                        }
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const val = customCategory.trim();
+                      if (val && !selectedCategories.includes(val)) {
+                        setSelectedCategories((prev) => [...prev, val]);
+                        setCustomCategory("");
+                      }
+                    }}
+                    disabled={!customCategory.trim()}
+                  >
+                    <Plus className="size-4" />
+                  </Button>
+                </div>
+                {selectedCategories.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedCategories.map((cat) => (
+                      <Badge key={cat} variant="secondary" className="gap-1 pr-1">
+                        {cat}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCategories((prev) => prev.filter((c) => c !== cat))}
+                          className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                        >
+                          <span className="sr-only">Remove {cat}</span>
+                          ×
+                        </button>
+                      </Badge>
+                    ))}
                   </div>
                 )}
               </div>

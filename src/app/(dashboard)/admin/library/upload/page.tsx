@@ -152,7 +152,7 @@ export default function LibraryBulkUploadPage() {
   function saveEdit() {
     if (editIndex === null || !editQ) return;
     if (!editQ.questionText.trim()) { toast.error("Question text is required"); return; }
-    if (!editQ.category.trim()) { toast.error("Category is required"); return; }
+    if (editQ.categories.length === 0) { toast.error("At least one category is required"); return; }
     const filledOptions = editQ.options.filter((o) => o.text.trim());
     if (filledOptions.length < 2) { toast.error("At least 2 options with text are required"); return; }
     if (editQ.correctOptionIds.length === 0) { toast.error("Select at least one correct option"); return; }
@@ -208,7 +208,7 @@ export default function LibraryBulkUploadPage() {
               <ul className="space-y-1.5 text-[13px]">
                 <li>
                   Same columns as test CSV, plus{" "}
-                  <code className="bg-muted px-1 rounded text-xs">category</code> (required) and{" "}
+                  <code className="bg-muted px-1 rounded text-xs">categories</code> (required, pipe-separated for multiple e.g. &quot;Math|DSA&quot;) and{" "}
                   <code className="bg-muted px-1 rounded text-xs">difficulty</code> (required: EASY, MEDIUM, or HARD)
                 </li>
                 <li>
@@ -303,7 +303,13 @@ export default function LibraryBulkUploadPage() {
                           {q.questionType === "SINGLE_SELECT" ? "Single" : "Multi"}
                         </Badge>
                       </TableCell>
-                      <TableCell><Badge variant="secondary">{q.category}</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {q.categories.map((cat) => (
+                            <Badge key={cat} variant="secondary">{cat}</Badge>
+                          ))}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <Badge variant={difficultyColor[q.difficulty] ?? "secondary"}>{q.difficulty}</Badge>
                       </TableCell>
@@ -433,12 +439,13 @@ export default function LibraryBulkUploadPage() {
               {/* Category & Difficulty */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Category <span className="text-destructive">*</span></Label>
+                  <Label>Categories <span className="text-destructive">*</span></Label>
                   <Input
-                    value={editQ.category}
-                    onChange={(e) => setEditQ({ ...editQ, category: e.target.value })}
-                    placeholder="e.g. Math, DSA"
+                    value={editQ.categories.join(" | ")}
+                    onChange={(e) => setEditQ({ ...editQ, categories: e.target.value.split("|").map((c) => c.trim()).filter(Boolean) })}
+                    placeholder="e.g. Math | DSA | Logic"
                   />
+                  <p className="text-xs text-muted-foreground">Separate multiple categories with |</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Difficulty</Label>

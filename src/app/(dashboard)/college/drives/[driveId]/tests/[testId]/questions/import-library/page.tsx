@@ -37,7 +37,7 @@ interface LibraryQuestion {
   codeBlock?: string | null;
   codeLanguage?: string | null;
   questionType: string;
-  category: string;
+  categories: string[];
   difficulty: string;
   marks: number;
 }
@@ -308,7 +308,11 @@ export default function ImportLibraryPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{q.category}</Badge>
+                        <div className="flex flex-wrap gap-1">
+                          {q.categories.map((cat) => (
+                            <Badge key={cat} variant="secondary">{cat}</Badge>
+                          ))}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant={difficultyColor[q.difficulty] ?? "secondary"}>

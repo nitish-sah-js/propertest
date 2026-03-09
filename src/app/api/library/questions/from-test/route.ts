@@ -7,7 +7,7 @@ const requestSchema = z.object({
   testId: z.string().min(1),
   questionIds: z.array(z.string()).min(1, "At least 1 question is required"),
   scope: z.enum(["global", "private"]),
-  category: z.string().min(1, "Category is required"),
+  categories: z.array(z.string().min(1)).min(1, "At least one category is required"),
   difficulty: z.enum(["EASY", "MEDIUM", "HARD"]),
 });
 
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { testId, questionIds, scope, category, difficulty } = parsed.data;
+    const { testId, questionIds, scope, categories, difficulty } = parsed.data;
 
     // Determine collegeId
     let collegeId: string | null = null;
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
             codeBlock: q.codeBlock,
             codeLanguage: q.codeLanguage,
             imageUrls: q.imageUrls ?? undefined,
-            category,
+            categories,
             difficulty,
             collegeId,
             createdById: user.id,

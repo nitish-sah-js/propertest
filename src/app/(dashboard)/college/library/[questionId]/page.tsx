@@ -35,6 +35,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Loader2, Plus, Trash2 } from "lucide-react";
 import { CodeTextarea } from "@/components/ui/code-textarea";
 import { QuestionContent } from "@/components/ui/question-content";
@@ -82,9 +83,9 @@ export default function CollegeEditLibraryQuestionPage() {
   const [marks, setMarks] = useState(1);
   const [negativeMarks, setNegativeMarks] = useState(0);
   const [explanation, setExplanation] = useState("");
-  const [category, setCategory] = useState("");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [customCategory, setCustomCategory] = useState("");
   const [difficulty, setDifficulty] = useState("MEDIUM");
-  const [useCustomCategory, setUseCustomCategory] = useState(false);
   const [categories, setCategories] = useState<{ id: string; name: string; isGlobal: boolean }[]>([]);
   const [testCases, setTestCases] = useState<TestCaseData[]>([]);
 
@@ -111,16 +112,13 @@ export default function CollegeEditLibraryQuestionPage() {
         setMarks(q.marks);
         setNegativeMarks(q.negativeMarks);
         setExplanation(q.explanation || "");
-        setCategory(q.category);
+        setSelectedCategories(q.categories ?? []);
         setDifficulty(q.difficulty);
         if (q.testCases) setTestCases(q.testCases);
         if (catRes.ok) {
           const cats = await catRes.json();
           const catList = Array.isArray(cats) ? cats : [];
           setCategories(catList);
-          if (catList.length === 0 || !catList.some((c: { name: string }) => c.name === q.category)) {
-            setUseCustomCategory(true);
-          }
         }
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to load question");
@@ -165,7 +163,7 @@ export default function CollegeEditLibraryQuestionPage() {
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!questionText.trim()) { toast.error("Question text is required"); return; }
-    if (!category.trim()) { toast.error("Category is required"); return; }
+    if (selectedCategories.length === 0) { toast.error("At least one category is required"); return; }
 
     setIsSaving(true);
     const body: Record<string, unknown> = {
@@ -173,7 +171,7 @@ export default function CollegeEditLibraryQuestionPage() {
       codeBlock: codeBlock.trim() || null,
       codeLanguage: codeLanguage || null,
       imageUrls: imageUrls.length > 0 ? imageUrls : null,
-      questionType, category, difficulty, marks, negativeMarks,
+      questionType, categories: selectedCategories, difficulty, marks, negativeMarks,
       explanation: explanation || null,
     };
 
@@ -359,52 +357,91 @@ export default function CollegeEditLibraryQuestionPage() {
               </div>
             )}
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Category <span className="text-destructive">*</span></Label>
-                {categories.length > 0 && !useCustomCategory ? (
-                  <div className="space-y-1.5">
-                    <Select value={category} onValueChange={setCategory}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <button type="button" className="text-xs text-muted-foreground hover:underline" onClick={() => { setUseCustomCategory(true); setCategory(""); }}>
-                      Or type a custom category
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    <Input
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      placeholder="e.g. Math, DSA, DBMS"
-                      required
-                    />
-                    {categories.length > 0 && (
-                      <button type="button" className="text-xs text-muted-foreground hover:underline" onClick={() => { setUseCustomCategory(false); setCategory(""); }}>
-                        Select from existing categories
+            <div className="space-y-2">
+              <Label>
+                Categories <span className="text-destructive">*</span>
+              </Label>
+              {categories.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((cat) => {
+                    const isChecked = selectedCategories.includes(cat.name);
+                    return (
+                      <label key={cat.id} className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm cursor-pointer transition-colors ${isChecked ? "bg-primary/10 border-primary" : "hover:bg-muted"}`}>
+                        <Checkbox
+                          checked={isChecked}
+                          onCheckedChange={(checked) => {
+                            if (checked) setSelectedCategories((prev) => [...prev, cat.name]);
+                            else setSelectedCategories((prev) => prev.filter((c) => c !== cat.name));
+                          }}
+                        />
+                        {cat.name}
+                        {cat.isGlobal && <Badge variant="secondary" className="text-[10px] px-1 py-0 ml-1">Global</Badge>}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Input
+                  value={customCategory}
+                  onChange={(e) => setCustomCategory(e.target.value)}
+                  placeholder="Add custom category"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const val = customCategory.trim();
+                      if (val && !selectedCategories.includes(val)) {
+                        setSelectedCategories((prev) => [...prev, val]);
+                        setCustomCategory("");
+                      }
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const val = customCategory.trim();
+                    if (val && !selectedCategories.includes(val)) {
+                      setSelectedCategories((prev) => [...prev, val]);
+                      setCustomCategory("");
+                    }
+                  }}
+                  disabled={!customCategory.trim()}
+                >
+                  <Plus className="size-4" />
+                </Button>
+              </div>
+              {selectedCategories.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedCategories.map((cat) => (
+                    <Badge key={cat} variant="secondary" className="gap-1 pr-1">
+                      {cat}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCategories((prev) => prev.filter((c) => c !== cat))}
+                        className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                      >
+                        <span className="sr-only">Remove {cat}</span>
+                        ×
                       </button>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>Difficulty</Label>
-                <Select value={difficulty} onValueChange={setDifficulty}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="EASY">Easy</SelectItem>
-                    <SelectItem value="MEDIUM">Medium</SelectItem>
-                    <SelectItem value="HARD">Hard</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Difficulty</Label>
+              <Select value={difficulty} onValueChange={setDifficulty}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EASY">Easy</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="HARD">Hard</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

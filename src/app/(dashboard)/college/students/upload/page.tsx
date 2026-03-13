@@ -37,6 +37,7 @@ type Phase = "loading" | "select" | "preview" | "passwords" | "uploading";
 interface UsnStructure {
   configured: boolean;
   usnFormat?: string;
+  usnExample?: string;
 }
 
 export default function StudentUploadPage() {
@@ -66,7 +67,7 @@ export default function StudentUploadPage() {
 
   async function handleDownloadTemplate(format: "csv" | "xlsx") {
     if (!usnStructure?.usnFormat) return;
-    const csv = generateStudentCSVTemplate(usnStructure.usnFormat);
+    const csv = generateStudentCSVTemplate(usnStructure.usnExample);
 
     if (format === "xlsx") {
       const { utils, writeFile } = await import("xlsx");
@@ -248,12 +249,11 @@ export default function StudentUploadPage() {
                     </li>
                     <li>
                       <code className="bg-muted px-1 rounded text-xs">usn</code>
-                      {" "}&mdash; University Seat Number (must be{" "}
-                      {usnStructure.usnFormat!.length} characters, e.g.{" "}
+                      {" "}&mdash; University Seat Number (must match pattern{" "}
                       <code className="bg-muted px-1 rounded text-xs">
                         {usnStructure.usnFormat}
                       </code>
-                      )
+                      ) {usnStructure.usnExample && `e.g. ${usnStructure.usnExample}`}
                     </li>
                     <li>
                       <code className="bg-muted px-1 rounded text-xs">department</code>

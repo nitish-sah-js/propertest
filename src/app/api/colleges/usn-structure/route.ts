@@ -19,6 +19,7 @@ export async function GET() {
       where: { id: user.collegeId },
       select: {
         usnFormat: true,
+        usnExample: true,
       },
     });
 
@@ -33,6 +34,7 @@ export async function GET() {
     return NextResponse.json({
       configured: true,
       usnFormat: college.usnFormat,
+      usnExample: college.usnExample,
     });
   } catch (error) {
     console.error("GET /api/colleges/usn-structure error:", error);

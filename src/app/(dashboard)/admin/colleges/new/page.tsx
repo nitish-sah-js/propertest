@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ export default function NewCollegePage() {
 
     const formData = new FormData(e.currentTarget);
     const usnFormat = formData.get("usnFormat") as string;
+    const usnExample = formData.get("usnExample") as string;
     const data: Record<string, unknown> = {
       name: formData.get("name") as string,
       code: (formData.get("code") as string) || undefined,
@@ -37,6 +38,9 @@ export default function NewCollegePage() {
     };
     if (usnFormat) {
       data.usnFormat = usnFormat;
+    }
+    if (usnExample) {
+      data.usnExample = usnExample.toUpperCase();
     }
 
     try {
@@ -61,6 +65,24 @@ export default function NewCollegePage() {
       setIsSubmitting(false);
     }
   }
+
+  const [usnFormat, setUsnFormat] = useState("");
+  const [usnExample, setUsnExample] = useState("");
+  const [regexValid, setRegexValid] = useState<boolean | null>(null);
+
+  // Live preview validation
+  useEffect(() => {
+    if (!usnFormat || !usnExample) {
+      setRegexValid(null);
+      return;
+    }
+    try {
+      const regex = new RegExp(usnFormat);
+      setRegexValid(regex.test(usnExample));
+    } catch {
+      setRegexValid(false);
+    }
+  }, [usnFormat, usnExample]);
 
   return (
     <div className="space-y-6">
@@ -158,20 +180,50 @@ export default function NewCollegePage() {
               <div>
                 <h3 className="text-sm font-medium">USN Structure</h3>
                 <p className="text-xs text-muted-foreground">
-                  Set the expected USN format for validating student uploads.
+                  Define a regex pattern to validate student USNs during uploads.
                 </p>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="usnFormat">Example USN Format</Label>
-                <Input
-                  id="usnFormat"
-                  name="usnFormat"
-                  placeholder="e.g. 1MS20CS001"
-                  className="font-mono uppercase"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Used to validate USN length during bulk student uploads.
-                </p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="usnFormat">USN Regex Pattern</Label>
+                  <Input
+                    id="usnFormat"
+                    name="usnFormat"
+                    value={usnFormat}
+                    onChange={(e) => setUsnFormat(e.target.value)}
+                    placeholder="e.g. ^1SI\d{2}[A-Z]{2}\d{3}$"
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Regex used to validate USN format during bulk student uploads.
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="usnExample">Example USN (Preview)</Label>
+                  <Input
+                    id="usnExample"
+                    name="usnExample"
+                    value={usnExample}
+                    onChange={(e) => setUsnExample(e.target.value.toUpperCase())}
+                    placeholder="e.g. 1SI22CS001"
+                    className="font-mono uppercase"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This example will be shown in the CSV template for college admins.
+                  </p>
+                </div>
+
+                {usnFormat && usnExample && (
+                  <div className={`p-3 rounded-md text-sm flex items-center gap-2 border ${regexValid ? 'bg-green-500/10 border-green-500/20 text-green-600 dark:text-green-400' : 'bg-destructive/10 border-destructive/20 text-destructive'}`}>
+                    <div className={`size-2 rounded-full ${regexValid ? 'bg-green-500' : 'bg-destructive'}`} />
+                    {regexValid ? (
+                      <span>The example USN <strong>matches</strong> the regex pattern.</span>
+                    ) : (
+                      <span>The example USN <strong>does not match</strong> or the regex is invalid.</span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

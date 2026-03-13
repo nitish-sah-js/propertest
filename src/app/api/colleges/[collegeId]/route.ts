@@ -14,6 +14,7 @@ const updateCollegeSchema = z
     contactPhone: z.string().optional(),
     isActive: z.boolean().optional(),
     usnFormat: z.string().optional().nullable(),
+    usnExample: z.string().optional().nullable(),
   });
 
 type RouteParams = { params: Promise<{ collegeId: string }> };

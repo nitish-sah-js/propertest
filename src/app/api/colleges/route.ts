@@ -14,6 +14,7 @@ const createCollegeSchema = z.object({
   contactPhone: z.string().optional(),
   isActive: z.boolean().optional(),
   usnFormat: z.string().optional().nullable(),
+  usnExample: z.string().optional().nullable(),
 });
 
 // GET /api/colleges — list all colleges (super admin only)

@@ -15,11 +15,18 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /**
  * Parse and validate a CSV string into student records.
  * Department code is read from an explicit "department" column.
+ * @param usnFormat - A regex pattern string to validate USN format (e.g. "^1SI\d{2}[A-Z]{2}\d{3}$")
  */
 export function parseStudentsCSV(
   text: string,
   usnFormat: string
 ): { students: CSVStudent[]; errors: CSVParseError[] } {
+  let usnRegex: RegExp;
+  try {
+    usnRegex = new RegExp(usnFormat);
+  } catch {
+    return { students: [], errors: [{ row: 0, message: `Invalid USN regex pattern: "${usnFormat}"` }] };
+  }
   const rows = parseCSV(text);
   const students: CSVStudent[] = [];
   const errors: CSVParseError[] = [];
@@ -79,10 +86,10 @@ export function parseStudentsCSV(
       continue;
     }
 
-    if (usn.length !== usnFormat.length) {
+    if (!usnRegex.test(usn)) {
       errors.push({
         row: rowNum,
-        message: `USN "${usn}" length (${usn.length}) doesn't match expected format length (${usnFormat.length})`,
+        message: `USN "${usn}" does not match the expected pattern: ${usnFormat}`,
       });
       continue;
     }
@@ -119,14 +126,12 @@ export function parseStudentsCSV(
   return { students, errors };
 }
 
-/**
- * Generate a CSV template string for student upload.
- */
-export function generateStudentCSVTemplate(usnFormat: string): string {
+export function generateStudentCSVTemplate(usnExample?: string): string {
   const header = EXPECTED_HEADERS.join(",");
-  const example1 = `John Doe,john@example.com,${usnFormat},CS,3`;
-  // Create a second example with a slightly different USN
-  const usn2 = usnFormat.slice(0, -3) + "002";
+  const usn1 = usnExample || "1SI22CS001";
+  const usn2 = usnExample ? usnExample.slice(0, -3) + "002" : "1SI22EC002";
+  
+  const example1 = `John Doe,john@example.com,${usn1},CS,3`;
   const example2 = `Jane Smith,jane@example.com,${usn2},EC,5`;
   return `${header}\n${example1}\n${example2}\n`;
 }

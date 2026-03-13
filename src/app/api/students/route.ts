@@ -1,6 +1,109 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-guard";
+import { hashPassword } from "better-auth/crypto";
+
+const addStudentSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  usn: z.string().optional(),
+  departmentId: z.string().min(1, "Department is required"),
+  semester: z.number().int().min(1).max(8),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+// POST /api/students — create a single student account (COLLEGE_ADMIN only)
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const user = session.user as { id: string; role: string; collegeId: string };
+    if (user.role !== "COLLEGE_ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const parsed = addStudentSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Validation failed", details: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
+
+    const { name, email, usn, departmentId, semester, password } = parsed.data;
+    const collegeId = user.collegeId;
+
+    // Verify department belongs to this college
+    const department = await prisma.department.findFirst({
+      where: { id: departmentId, collegeId },
+    });
+    if (!department) {
+      return NextResponse.json({ error: "Invalid department" }, { status: 400 });
+    }
+
+    // Check for duplicate email
+    const existingEmail = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    if (existingEmail) {
+      return NextResponse.json({ error: "Email already registered" }, { status: 400 });
+    }
+
+    // Check for duplicate USN (if provided)
+    if (usn) {
+      const existingUsn = await prisma.user.findUnique({ where: { usn: usn.toUpperCase() } });
+      if (existingUsn) {
+        return NextResponse.json({ error: "USN already exists" }, { status: 400 });
+      }
+    }
+
+    const hashedPw = await hashPassword(password);
+
+    const newStudent = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          name,
+          email: email.toLowerCase(),
+          emailVerified: true,
+          role: "STUDENT",
+          collegeId,
+          usn: usn ? usn.toUpperCase() : null,
+          departmentId,
+          semester,
+        },
+      });
+
+      await tx.account.create({
+        data: {
+          userId: created.id,
+          accountId: created.id,
+          providerId: "credential",
+          password: hashedPw,
+        },
+      });
+
+      return created;
+    });
+
+    return NextResponse.json({
+      success: true,
+      student: {
+        id: newStudent.id,
+        name: newStudent.name,
+        email: newStudent.email,
+      },
+    });
+  } catch (error) {
+    console.error("POST /api/students error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
 
 // GET /api/students — list students with optional filters and test stats
 export async function GET(request: NextRequest) {

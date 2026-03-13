@@ -15,6 +15,7 @@ import {
   ArrowUpCircle,
   GraduationCap,
   Users,
+  UserPlus,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -86,6 +87,15 @@ interface EditForm {
   usn: string;
   semester: string;
   departmentId: string;
+}
+
+interface AddForm {
+  name: string;
+  email: string;
+  usn: string;
+  departmentId: string;
+  semester: string;
+  password: string;
 }
 
 export default function StudentsListPage() {
@@ -161,6 +171,18 @@ export default function StudentsListPage() {
     departmentId: "none",
   });
   const [saving, setSaving] = useState(false);
+
+  // Add student state
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addForm, setAddForm] = useState<AddForm>({
+    name: "",
+    email: "",
+    usn: "",
+    departmentId: "",
+    semester: "",
+    password: "",
+  });
+  const [adding, setAdding] = useState(false);
 
   // Clear selection when filters change
   useEffect(() => {
@@ -364,6 +386,40 @@ export default function StudentsListPage() {
     }
   }
 
+  async function handleAddStudent() {
+    if (!addForm.name || !addForm.email || !addForm.departmentId || !addForm.semester || !addForm.password) {
+      return;
+    }
+    setAdding(true);
+    try {
+      const res = await fetch("/api/students", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: addForm.name,
+          email: addForm.email,
+          usn: addForm.usn || undefined,
+          departmentId: addForm.departmentId,
+          semester: parseInt(addForm.semester, 10),
+          password: addForm.password,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("Student added successfully");
+        setAddDialogOpen(false);
+        setAddForm({ name: "", email: "", usn: "", departmentId: "", semester: "", password: "" });
+        refreshStudents();
+      } else {
+        toast.error(data.error || "Failed to add student");
+      }
+    } catch {
+      toast.error("Failed to add student");
+    } finally {
+      setAdding(false);
+    }
+  }
+
   const safePage = Math.min(currentPage, totalPages);
   const startIdx = (safePage - 1) * PAGE_SIZE;
 
@@ -389,12 +445,18 @@ export default function StudentsListPage() {
             All registered students in your college.
           </p>
         </div>
-        <Button asChild className="shrink-0">
-          <Link href="/college/students/upload">
-            <Upload className="size-4" aria-hidden="true" />
-            Upload Students
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="outline" onClick={() => setAddDialogOpen(true)}>
+            <UserPlus className="size-4" aria-hidden="true" />
+            Add Student
+          </Button>
+          <Button asChild>
+            <Link href="/college/students/upload">
+              <Upload className="size-4" aria-hidden="true" />
+              Upload Students
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -1011,6 +1073,118 @@ export default function StudentsListPage() {
                 />
               )}
               Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Student Dialog */}
+      <Dialog open={addDialogOpen} onOpenChange={(open) => {
+        setAddDialogOpen(open);
+        if (!open) setAddForm({ name: "", email: "", usn: "", departmentId: "", semester: "", password: "" });
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Student</DialogTitle>
+            <DialogDescription>
+              Create a new student account. The student can log in using the password you set.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="add-name">Name</Label>
+              <Input
+                id="add-name"
+                placeholder="Student name"
+                value={addForm.name}
+                onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
+                autoComplete="name"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="add-email">Email</Label>
+              <Input
+                id="add-email"
+                type="email"
+                placeholder="student@example.com"
+                value={addForm.email}
+                onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))}
+                autoComplete="email"
+                spellCheck={false}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="add-usn">USN <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input
+                id="add-usn"
+                placeholder="e.g. 1SI22CS001"
+                value={addForm.usn}
+                onChange={(e) => setAddForm((f) => ({ ...f, usn: e.target.value }))}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="add-department">Department</Label>
+              <Select
+                value={addForm.departmentId}
+                onValueChange={(val) => setAddForm((f) => ({ ...f, departmentId: val }))}
+              >
+                <SelectTrigger id="add-department">
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept.id} value={dept.id}>
+                      {dept.code ? `${dept.code} – ${dept.name}` : dept.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="add-semester">Semester</Label>
+              <Select
+                value={addForm.semester}
+                onValueChange={(val) => setAddForm((f) => ({ ...f, semester: val }))}
+              >
+                <SelectTrigger id="add-semester">
+                  <SelectValue placeholder="Select semester" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
+                    <SelectItem key={sem} value={String(sem)}>
+                      Semester {sem}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="add-password">Password</Label>
+              <Input
+                id="add-password"
+                type="password"
+                placeholder="Min 8 characters"
+                value={addForm.password}
+                onChange={(e) => setAddForm((f) => ({ ...f, password: e.target.value }))}
+                autoComplete="new-password"
+              />
+              {addForm.password.length > 0 && addForm.password.length < 8 && (
+                <p className="text-xs text-destructive">Password must be at least 8 characters</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)} disabled={adding}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddStudent}
+              disabled={adding || !addForm.name || !addForm.email || !addForm.departmentId || !addForm.semester || addForm.password.length < 8}
+            >
+              {adding && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>
